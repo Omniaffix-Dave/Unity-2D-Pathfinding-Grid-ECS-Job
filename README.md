@@ -2,7 +2,7 @@
 
 My goal was to create an easy to use high performant example for myself, as well as other people to incorporate into their 2D projects.
 
-[Forum discussion post](https://forum.unity.com/threads/planning-a-2d-grid-pure-ecs-job-burst-pathfinding.724211/#post-4836806)
+[Forum discussion post](https://forum.unity.com/threads/planning-a-2d-grid-pure-ecs-job-burst-pathfinding.724211)
 
 ## Why Pure ECS?
 The current project I was working on had performance issues, I resolved some by converting my targeting system to pure ECS.
