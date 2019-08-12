@@ -1,5 +1,7 @@
 # Pure ECS Burst Job 2D Grid A* Pathfinding
 
+![Image of 100 Searches](https://github.com/Omniaffix-Dave/Unity-2D-Pathfinding-Grid-ECS-Job/blob/master/ECSPathfinding.PNG)
+
 My goal was to create an easy to use high performant example for myself, as well as other people to incorporate into their 2D projects.
 
 [Forum discussion post](https://forum.unity.com/threads/planning-a-2d-grid-pure-ecs-job-burst-pathfinding.724211)
