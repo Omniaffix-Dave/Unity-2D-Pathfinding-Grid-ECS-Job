@@ -96,7 +96,7 @@
             return jobHandle;
         }
 
-        [BurstCompile]
+        //[BurstCompile]
         struct FindPathJobChunk : IJobChunk
         {
             [ReadOnly] public int DimX;
@@ -153,6 +153,7 @@
                         // cache these as they're used a lot
                         int2 start = currentPosition.Value.xy.FloorToInt();
                         int2 goal = request.end; //WE ADDED XZ TO GET 2D
+                        Debug.Log(goal);
 
                         DynamicBuffer<float3> waypoints = Waypoints[i].Reinterpret<float3>();
                         waypoints.Clear();
