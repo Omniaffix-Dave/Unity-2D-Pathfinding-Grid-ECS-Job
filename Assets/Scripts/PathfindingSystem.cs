@@ -1,37 +1,34 @@
-﻿namespace Pathfinding
-{
-    using System;
-    using JetBrains.Annotations;
-    using Unity.Burst;
-    using Unity.Collections;
-    using Unity.Collections.LowLevel.Unsafe;
-    using Unity.Entities;
-    using Unity.Jobs;
-    using Unity.Mathematics;
-    using Unity.Transforms;
-    using UnityEngine;
+﻿using Unity.Burst;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Entities;
+using Unity.Jobs;
+using Unity.Mathematics;
+using Unity.Transforms;
+using UnityEngine;
 
+namespace Pathfinding
+{ 
     public class PathfindingSystem : JobComponentSystem
     {
         NativeArray<Neighbour> neighbours;
 
-        EndSimulationEntityCommandBufferSystem entityCommandBuffer;
+        //EndSimulationEntityCommandBufferSystem entityCommandBuffer;
+        //EntityQuery gridQuery;
+
         EntityQuery pathRequests;
-        EntityQuery gridQuery;
 
         const int IterationLimit = 1000;
-        int2 worldSize;
-        int size;
+        public int2 worldSize;
 
-        public void ManualCreate(int2 newWorldSize)
+        protected override void OnCreate()
         {
-            worldSize = newWorldSize;
-            size = worldSize.x * worldSize.y;
+            //Moved to manual for fast grid resizing test
 
-
-            entityCommandBuffer = World.GetOrCreateSystem<EndSimulationEntityCommandBufferSystem>();
+            //entityCommandBuffer = World.GetOrCreateSystem<EndSimulationEntityCommandBufferSystem>();
             pathRequests = GetEntityQuery(typeof(Waypoint), ComponentType.ReadOnly<PathRequest>(), ComponentType.ReadOnly<Translation>(), ComponentType.ReadOnly<NavigationCapabilities>());
-            gridQuery = GetEntityQuery(ComponentType.ReadOnly<Cell>());
+            pathRequests.SetFilterChanged(typeof(PathRequest));
+            //gridQuery = GetEntityQuery(ComponentType.ReadOnly<Cell>());
 
             neighbours = new NativeArray<Neighbour>(8, Allocator.Persistent)
             {
@@ -46,31 +43,26 @@
             };
         }
 
-        protected override void OnCreate()
-        {
-            //Moved to manual for fast grid resizing test
-            
-        }
-
         protected override void OnDestroy()
         {
             neighbours.Dispose();
         }
 
         protected override JobHandle OnUpdate(JobHandle inputDeps)
-        {
+        {            
             int numberOfRequests = pathRequests.CalculateChunkCount();
             if (numberOfRequests == 0) return inputDeps;
 
-            NativeArray<ArchetypeChunk> gridChunks = gridQuery.CreateArchetypeChunkArray(Allocator.TempJob);
+            //NativeArray<ArchetypeChunk> gridChunks = gridQuery.CreateArchetypeChunkArray(Allocator.TempJob);
 
             //Schedule the findPath to build <Waypoints> Job
             FindPathJobChunk findPathJob = new FindPathJobChunk()
             {
                 WaypointChunkBuffer = GetArchetypeChunkBufferType<Waypoint>(false),
                 PathRequestsChunkComponent = GetArchetypeChunkComponentType<PathRequest>(true),
-                GridChunks = gridChunks,
-                CellTypeRO = GetArchetypeChunkBufferType<Cell>(true),
+                //GridChunks = gridChunks,
+                //CellTypeRO = GetArchetypeChunkBufferType<Cell>(true),
+                CellArray = RequiredExtensions.cells,
                 TranslationsChunkComponent = GetArchetypeChunkComponentType<Translation>(true),
                 NavigationCapabilitiesChunkComponent = GetArchetypeChunkComponentType<NavigationCapabilities>(true),
                 Neighbors = neighbours,
@@ -82,21 +74,21 @@
             JobHandle jobHandle = findPathJob.Schedule(pathRequests, inputDeps);
 
             //Schedule the remove <PathSearcher> Job
-            RemoveComponentJob removeComponentJob = new RemoveComponentJob()
-            {
-                entityCommandBuffer = entityCommandBuffer.CreateCommandBuffer().ToConcurrent(),
-                WaypointChunkBuffer = GetArchetypeChunkBufferType<Waypoint>(true),
-                PathRequestsChunkComponent = GetArchetypeChunkComponentType<PathRequest>(true)
+            //RemoveComponentJob removeComponentJob = new RemoveComponentJob()
+            //{
+            //    entityCommandBuffer = entityCommandBuffer.CreateCommandBuffer().ToConcurrent(),
+            //    WaypointChunkBuffer = GetArchetypeChunkBufferType<Waypoint>(true),
+            //    PathRequestsChunkComponent = GetArchetypeChunkComponentType<PathRequest>(true)
 
-            };
-            jobHandle = removeComponentJob.Schedule(pathRequests, jobHandle);
+            //};
+            //jobHandle = removeComponentJob.Schedule(pathRequests, jobHandle);
 
-            entityCommandBuffer.AddJobHandleForProducer(jobHandle);
+            //entityCommandBuffer.AddJobHandleForProducer(jobHandle);
 
             return jobHandle;
         }
 
-        //[BurstCompile]
+        [BurstCompile]
         struct FindPathJobChunk : IJobChunk
         {
             [ReadOnly] public int DimX;
@@ -104,10 +96,12 @@
             [ReadOnly] public int Iterations;
             [ReadOnly] public int NeighborCount;
 
-            [ReadOnly, DeallocateOnJobCompletion] public NativeArray<ArchetypeChunk> GridChunks;
-            [ReadOnly] public ArchetypeChunkBufferType<Cell> CellTypeRO;
+            //[ReadOnly, DeallocateOnJobCompletion] public NativeArray<ArchetypeChunk> GridChunks;
+            //[ReadOnly] public ArchetypeChunkBufferType<Cell> CellTypeRO;
 
-            public ArchetypeChunkBufferType<Waypoint> WaypointChunkBuffer;
+            [ReadOnly] public NativeArray<Cell> CellArray;
+
+            [WriteOnly] public ArchetypeChunkBufferType<Waypoint> WaypointChunkBuffer;
             [ReadOnly] public ArchetypeChunkComponentType<PathRequest> PathRequestsChunkComponent;
             [ReadOnly] public NativeArray<Neighbour> Neighbors;
             [ReadOnly] public ArchetypeChunkComponentType<Translation> TranslationsChunkComponent;
@@ -115,8 +109,9 @@
 
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
-                BufferAccessor<Cell> accessor = this.GridChunks[0].GetBufferAccessor(this.CellTypeRO);
-                DynamicBuffer<Cell> grid = accessor[0].Reinterpret<Cell>();
+                //BufferAccessor<Cell> accessor = this.GridChunks[0].GetBufferAccessor(this.CellTypeRO);
+                //DynamicBuffer<Cell> grid = accessor[0].Reinterpret<Cell>();
+
 
                 int size = DimX * DimY;
                 BufferAccessor<Waypoint> Waypoints = chunk.GetBufferAccessor(WaypointChunkBuffer);
@@ -128,32 +123,28 @@
                 NativeArray<int2> CameFrom = new NativeArray<int2>(size * chunk.Count, Allocator.Temp);
                 NativeMinHeap OpenSet = new NativeMinHeap((Iterations + 1) * Neighbors.Length * chunk.Count, Allocator.Temp);
 
-                for (int i = 0; i < chunk.Count; i++)
+                for (int i = chunkIndex; i < chunk.Count; i++)
                 {
                     NativeSlice<float> costSoFar = CostSoFar.Slice(i * size, size);
                     NativeSlice<int2> cameFrom = CameFrom.Slice(i * size, size);
 
                     int openSetSize = (Iterations + 1) * NeighborCount;
                     NativeMinHeap openSet = OpenSet.Slice(i * openSetSize, openSetSize);
-                    int requestIndex = i;
+                    PathRequest request = PathRequests[i];
 
-                    while (chunk.Count > requestIndex * NeighborCount)
-                    {
-                        PathRequest request = PathRequests[requestIndex];
-                        requestIndex += chunk.Count;
+                    // Clear our shared data
+                    //var buffer = costSoFar.GetUnsafePtr();
+                    //UnsafeUtility.MemClear(buffer, (long)costSoFar.Length * UnsafeUtility.SizeOf<float>());
+                    //openSet.Clear();
 
-                        // Clear our shared data
-                        //var buffer = costSoFar.GetUnsafePtr();
-                        //UnsafeUtility.MemClear(buffer, (long)costSoFar.Length * UnsafeUtility.SizeOf<float>());
-                        //openSet.Clear();
-
-                        Translation currentPosition = Translations[i];
+                    Translation currentPosition = Translations[i];
                         NavigationCapabilities capability = NavigationCapabilities[i];
 
                         // cache these as they're used a lot
                         int2 start = currentPosition.Value.xy.FloorToInt();
-                        int2 goal = request.end; //WE ADDED XZ TO GET 2D
-                        Debug.Log(goal);
+                        int2 goal = request.end;
+                        
+                        
 
                         DynamicBuffer<float3> waypoints = Waypoints[i].Reinterpret<float3>();
                         waypoints.Clear();
@@ -163,7 +154,7 @@
                         {
                             // We just set the destination as the goal, but need to get the correct height
                             int gridIndex = this.GetIndex(goal);
-                            Cell cell = grid[gridIndex];
+                            Cell cell = CellArray[gridIndex];
                             float3 point = new float3(request.Destination.x, request.Destination.y, cell.Height);
                             waypoints.Add(point);
                             continue;
@@ -171,7 +162,7 @@
 
                         var stash = new InstanceStash
                         {
-                            Grid = grid,
+                            Grid = CellArray,
                             CameFrom = cameFrom,
                             CostSoFar = costSoFar,
                             OpenSet = openSet,
@@ -187,7 +178,6 @@
                         {
                             this.ReconstructPath(stash);
                         }
-                    }
                 }
                 CostSoFar.Dispose();
                 CameFrom.Dispose();
@@ -321,17 +311,12 @@
                     }
                 }
 
-                current = stash.CameFrom[this.GetIndex(stash.Start)];
-                from = this.GetPosition(stash.Grid, current);
+                stash.Waypoints.Reverse();
 
-                stash.Waypoints.Add(from);
-
-                //stash.Waypoints.Add(this.GetPosition(stash.Grid, this.GetIndex(stash.Request.start)));
-
-                stash.Waypoints.Reverse();                
+                stash.Request.fufilled = true;
             }
 
-            bool IsWalkable(DynamicBuffer<Cell> buffer, float2 from, float2 to)
+            bool IsWalkable(NativeArray<Cell> buffer, float2 from, float2 to)
             {
                 const float step = 0.25f;
 
@@ -357,11 +342,10 @@
                         return false;
                     }
                 }
-
                 return true;
             }
 
-            float GetCellCost(DynamicBuffer<Cell> grid, NavigationCapabilities capabilities, int fromIndex, int toIndex, Neighbour neighbour, bool areNeighbours)
+            float GetCellCost(NativeArray<Cell> grid, NavigationCapabilities capabilities, int fromIndex, int toIndex, Neighbour neighbour, bool areNeighbours)
             {
                 var target = grid[toIndex];
                 if (target.Blocked)
@@ -405,7 +389,7 @@
                 return 1;
             }
 
-            float3 GetPosition(DynamicBuffer<Cell> grid, int2 point)
+            float3 GetPosition(NativeArray<Cell> grid, int2 point)
             {
                 var index = this.GetIndex(point);
                 var cell = grid[index];
@@ -415,7 +399,10 @@
 
             int GetIndex(int2 i)
             {
-                return (i.y * this.DimX) + i.x;
+                if (DimX > DimY)
+                    return (i.y * DimY) + i.x;
+                else
+                    return (i.x * DimX) + i.y;
             }
 
             struct InstanceStash
@@ -428,7 +415,7 @@
                 public int2 Start;
                 public int2 Goal;
 
-                public DynamicBuffer<Cell> Grid;
+                public NativeArray<Cell> Grid;
 
                 public NativeSlice<float> CostSoFar;
                 public NativeSlice<int2> CameFrom;
@@ -436,23 +423,25 @@
             }
         }
 
-        struct RemoveComponentJob : IJobChunk
-        {
-            public EntityCommandBuffer.Concurrent entityCommandBuffer;
-            [ReadOnly] public ArchetypeChunkBufferType<Waypoint> WaypointChunkBuffer;
-            [ReadOnly] public ArchetypeChunkComponentType<PathRequest> PathRequestsChunkComponent;
+        //struct RemoveComponentJob : IJobChunk
+        //{
+        //    public EntityCommandBuffer.Concurrent entityCommandBuffer;
+        //    [ReadOnly] public ArchetypeChunkBufferType<Waypoint> WaypointChunkBuffer;
+        //    [ReadOnly] public ArchetypeChunkComponentType<PathRequest> PathRequestsChunkComponent;
 
-            public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
-            {
-                BufferAccessor<Waypoint> Waypoints = chunk.GetBufferAccessor(WaypointChunkBuffer);
-                NativeArray<PathRequest> PathRequests = chunk.GetNativeArray(PathRequestsChunkComponent);
+        //    public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
+        //    {
+        //        BufferAccessor<Waypoint> Waypoints = chunk.GetBufferAccessor(WaypointChunkBuffer);
+        //        NativeArray<PathRequest> PathRequests = chunk.GetNativeArray(PathRequestsChunkComponent);
 
-                for (int i = 0; i < chunk.Count; i++)
-                {
-                    if (Waypoints[i].Length > 0)
-                        entityCommandBuffer.RemoveComponent(chunkIndex + i, PathRequests[i].Entity, typeof(PathRequest));
-                }
-            }
-        }
+
+
+        //        for (int i = 0; i < chunk.Count; i++)
+        //        {
+        //            if (Waypoints[i].Length > 0)
+        //                entityCommandBuffer.RemoveComponent(chunkIndex + i, PathRequests[i].Entity, typeof(PathRequest));
+        //        }
+        //    }
+        //}
     }        
 }

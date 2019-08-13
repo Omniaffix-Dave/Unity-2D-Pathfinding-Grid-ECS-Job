@@ -14,28 +14,35 @@ namespace Pathfinding
         public int2 end;
         public List<int2> blockedNodes;
         public int2 size;
-
-        Entity cellHolder;
-
+        int previousSize;
+        public bool manualSearch;
         public int numberToSearch = 1;
         public bool searchAgain;
-
         public int numberOfRandomBlockedToAdd = 1;
         public bool addRandomBlocked;
-
+        public bool ShowGrid;
+        public bool ShowPaths;
         public Color pathColor;
 
         private void Awake()
         {
-            World.Active.GetExistingSystem<PathfindingSystem>().ManualCreate(size);
-
             CreateGrid();
-            CreateSearcher(start, end);
         }    
 
         private void Update()
         {
-            if(addRandomBlocked)
+            if(size.x * size.y != previousSize)
+            {
+                CreateGrid();
+            }
+
+            if(manualSearch)
+            {
+                CreateSearcher(start, end);
+                manualSearch = false;
+            }
+
+            if (addRandomBlocked)
             {
                 addRandomBlocked = false;
                 CreateBlockedNodes();
@@ -47,7 +54,7 @@ namespace Pathfinding
 
                 for (int i = 0; i < numberToSearch; i++)
                 {
-                    CreateSearcher(new int2(Random.Range(0, 100), Random.Range(0, 100)), new int2(Random.Range(0, 100), Random.Range(0, 100)));
+                    CreateSearcher(new int2(Random.Range(0, size.x), Random.Range(0, size.x)), new int2(Random.Range(0, size.x), Random.Range(0, size.x)));
                 }
             }
         }
@@ -55,7 +62,7 @@ namespace Pathfinding
         public void CreateBlockedNodes()
         {
             EntityManager entityManager = World.Active.EntityManager;
-            var cells = entityManager.GetBuffer<Cell>(cellHolder);
+            var cells = RequiredExtensions.cells;
 
             for (int i = 0; i < numberOfRandomBlockedToAdd; i++)
             {
@@ -87,11 +94,18 @@ namespace Pathfinding
             entityManager.SetComponentData(pathSearcher, pathRequest);
         }
 
+        private void OnDisable()
+        {
+            RequiredExtensions.cells.Dispose();
+        }
+
         public void CreateGrid()
         {
-            EntityManager entityManager = World.Active.EntityManager;
-            cellHolder = entityManager.CreateEntity();
-            DynamicBuffer<Cell> cellBuffer = entityManager.AddBuffer<Cell>(cellHolder);
+            if(RequiredExtensions.cells.IsCreated)
+                RequiredExtensions.cells.Dispose();
+            RequiredExtensions.cells = new Unity.Collections.NativeArray<Cell>(size.x * size.y, Unity.Collections.Allocator.Persistent);
+
+            previousSize = size.x * size.y;
 
             for (int y = 0; y < size.y; y++)
             {
@@ -101,52 +115,68 @@ namespace Pathfinding
                     {
                         blocked = Convert.ToByte(blockedNodes.Contains(new int2(x, y)))
                     };
-                    cellBuffer.Add(cell);
+                    RequiredExtensions.cells[GetIndex(new int2(x, y))] = cell;
                 }
-            }           
+            }
+            World.Active.GetExistingSystem<PathfindingSystem>().worldSize = size;
         }
 
         void OnDrawGizmos()
         {
+            if (!ShowGrid && !ShowPaths) return;
 
             if (Application.isPlaying)
             {
-                EntityManager entityManager = World.Active.EntityManager;
-
-            var cells = entityManager.GetBuffer<Cell>(cellHolder);
-            for (int x = 0; x < size.x; x++)
-            {
-                for (int y = 0; y < size.y; y++)
+                if (ShowGrid && size.x * size.y == previousSize)
                 {
-                    Gizmos.color = cells[To1D(new int2(x,y))].Blocked ? Color.grey : Color.white;
-                    Gizmos.DrawCube(NodeToWorldPosition(new int2(x, y)), new Vector3(.90f, .90f));
-                }
-            }
+                    var cells = RequiredExtensions.cells;
 
-                var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Waypoint>());
-                if (query.CalculateEntityCount() > 0)
-                {
-                    var actualGroup = query.ToEntityArray(Unity.Collections.Allocator.TempJob);
-
-                    foreach (Entity entity in actualGroup)
+                    for (int x = 0; x < size.x; x++)
                     {
-                        var buffer = entityManager.GetBuffer<Waypoint>(entity);
-
-                        if (buffer.Length > 0)
+                        for (int y = 0; y < size.y; y++)
                         {
-                            Gizmos.color = pathColor;
-
-                            for (int i = 0; i < buffer.Length - 1; i++)
-                            {
-                                Gizmos.DrawLine(buffer[i].waypoints - .5f, buffer[i + 1].waypoints - .5f);
-                            }
+                            Gizmos.color = cells[GetIndex(new int2(x, y))].Blocked ? Color.grey : Color.white;
+                            Gizmos.DrawCube(NodeToWorldPosition(new int2(x, y)), new Vector3(.90f, .90f));
                         }
                     }
-                    actualGroup.Dispose();
                 }
+
+                if (ShowPaths)
+                {
+                    EntityManager entityManager = World.Active.EntityManager;
+                    var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Waypoint>());
+                    if (query.CalculateEntityCount() > 0)
+                    {
+                        var actualGroup = query.ToEntityArray(Unity.Collections.Allocator.TempJob);
+
+                        foreach (Entity entity in actualGroup)
+                        {
+                            var buffer = entityManager.GetBuffer<Waypoint>(entity);
+
+                            if (buffer.Length > 0)
+                            {
+                                Gizmos.color = pathColor;
+
+                                for (int i = 0; i < buffer.Length - 1; i++)
+                                {
+                                    Gizmos.DrawLine(buffer[i].waypoints - .5f, buffer[i + 1].waypoints - .5f);
+                                }
+                            }
+                        }
+                        actualGroup.Dispose();
+                    }
+                }                
             }                        
         }
+
         public float3 NodeToWorldPosition(int2 i) => new float3(i.x, i.y, 0);
-        public int To1D(int2 i) => (int)(i.x + (i.y * size.y));
+
+        int GetIndex(int2 i)
+        {
+            if (size.x > size.y)
+                return (i.y * size.y) + i.x;
+            else
+                return (i.x * size.x) + i.y;
+        }
     }
 }

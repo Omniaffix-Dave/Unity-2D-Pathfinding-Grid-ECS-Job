@@ -16,6 +16,8 @@ namespace Pathfinding
         public bool NavigateToNearestIfBlocked;
         public bool NavigateToBestIfIncomplete;
 
+        public bool fufilled;
+
     }
 
     public struct Neighbour
@@ -65,7 +67,7 @@ namespace Pathfinding
     {
         public float3 waypoints;
     }
-    public struct Cell : IBufferElementData
+    public struct Cell
     {
         public bool Blocked
         {
