@@ -10,22 +10,37 @@ namespace Pathfinding
 {
     public class InitializePathfinding : MonoBehaviour
     {
-        public int2 start;
-        public int2 end;
-        public List<int2> blockedNodes;
+        //Options
         public int2 size;
-        int previousSize;
-        public bool manualSearch;
-        public int numberToSearch = 1;
-        public bool searchAgain;
-        public int numberOfRandomBlockedToAdd = 1;
-        public bool addRandomBlocked;
-        public bool ShowGrid;
-        public bool ShowPaths;
+        public bool showGrid;
+        public bool showPaths;
+        public bool canMoveDiag;
         public Color pathColor;
+
+        //Manual Path
+        [HideInInspector] public Vector2Int start;
+        [HideInInspector] public Vector2Int end;
+        [HideInInspector] public bool searchManualPath;
+
+
+        //Random Path
+        [HideInInspector] public int numOfRandomPaths;
+        [HideInInspector] public bool searchRandomPaths;
+
+        //Manual blocked
+        List<int2> blockedNodes = new List<int2>();
+        [HideInInspector] public Vector2Int blockedNode;
+        [HideInInspector] public bool addManualBlockedNode;
+
+        //Random blocked
+        [HideInInspector] public int numbOfRandomBlockedNodes = 1;
+        [HideInInspector] public bool addRandomBlockedNode;
+
+        int previousSize; // Prevent GUI Errors
 
         private void Awake()
         {
+            World.Active.GetExistingSystem<PathfindingSystem>().canMoveDiag = canMoveDiag;
             CreateGrid();
         }    
 
@@ -36,25 +51,32 @@ namespace Pathfinding
                 CreateGrid();
             }
 
-            if(manualSearch)
+            if(addManualBlockedNode)
             {
-                CreateSearcher(start, end);
-                manualSearch = false;
+                blockedNodes.Add(new int2(blockedNode.x, blockedNode.y));
+                addManualBlockedNode = false;
+                CreateGrid();
             }
 
-            if (addRandomBlocked)
+            if(searchManualPath)
             {
-                addRandomBlocked = false;
+                CreateSearcher(new int2(start.x, start.y), new int2(end.x, end.y));
+                searchManualPath = false;
+            }
+
+            if (addRandomBlockedNode)
+            {
+                addRandomBlockedNode = false;
                 CreateBlockedNodes();
             }
 
-            if(searchAgain)
+            if(searchRandomPaths)
             {
-                searchAgain = false;
+                searchRandomPaths = false;
 
-                for (int i = 0; i < numberToSearch; i++)
+                for (int i = 0; i < numOfRandomPaths; i++)
                 {
-                    CreateSearcher(new int2(Random.Range(0, size.x), Random.Range(0, size.x)), new int2(Random.Range(0, size.x), Random.Range(0, size.x)));
+                    CreateSearcher(new int2(Random.Range(0, size.x), Random.Range(0, size.y)), new int2(Random.Range(0, size.x), Random.Range(0, size.y)));
                 }
             }
         }
@@ -64,7 +86,7 @@ namespace Pathfinding
             EntityManager entityManager = World.Active.EntityManager;
             var cells = RequiredExtensions.cells;
 
-            for (int i = 0; i < numberOfRandomBlockedToAdd; i++)
+            for (int i = 0; i < numbOfRandomBlockedNodes; i++)
             {
                 int randomCell = Random.Range(0, size.x * size.y);
 
@@ -123,11 +145,11 @@ namespace Pathfinding
 
         void OnDrawGizmos()
         {
-            if (!ShowGrid && !ShowPaths) return;
+            if (!showGrid && !showPaths) return;
 
             if (Application.isPlaying)
             {
-                if (ShowGrid && size.x * size.y == previousSize)
+                if (showGrid && size.x * size.y == previousSize)
                 {
                     var cells = RequiredExtensions.cells;
 
@@ -141,7 +163,7 @@ namespace Pathfinding
                     }
                 }
 
-                if (ShowPaths)
+                if (showPaths)
                 {
                     EntityManager entityManager = World.Active.EntityManager;
                     var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Waypoint>());
@@ -173,10 +195,10 @@ namespace Pathfinding
 
         int GetIndex(int2 i)
         {
-            if (size.x > size.y)
-                return (i.y * size.y) + i.x;
+            if (size.y >= size.x)
+                return (i.x * size.y) + i.y;
             else
-                return (i.x * size.x) + i.y;
+                return (i.y * size.x) + i.x;
         }
     }
 }

@@ -232,51 +232,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c17199525bd4ea1418796ce41745946d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  start:
-    x: 5
-    y: 2
-  end:
-    x: 45
-    y: 55
-  blockedNodes:
-  - x: 1
-    y: 1
-  - x: 1
-    y: 2
-  - x: 2
-    y: 1
-  - x: 3
-    y: 1
-  - x: 4
-    y: 1
-  - x: 5
-    y: 1
-  - x: 6
-    y: 2
-  - x: 6
-    y: 1
-  - x: 6
-    y: 3
-  - x: 5
-    y: 3
-  - x: 4
-    y: 3
-  - x: 3
-    y: 4
-  - x: 1
-    y: 4
-  - x: 1
-    y: 3
-  - x: 3
-    y: 3
   size:
     x: 100
     y: 100
-  numberToSearch: 50
-  searchAgain: 0
-  numberOfRandomBlockedToAdd: 25
-  addRandomBlocked: 0
-  pathColor: {r: 0.2688679, g: 0.74744827, b: 1, a: 1}
+  showGrid: 1
+  showPaths: 1
+  canMoveDiag: 1
+  pathColor: {r: 0, g: 0.21920633, b: 1, a: 1}
+  start: {x: 0, y: 0}
+  end: {x: 0, y: 0}
+  searchManualPath: 0
+  numOfRandomPaths: 50
+  searchRandomPaths: 0
+  blockedNode: {x: 0, y: 0}
+  addManualBlockedNode: 0
+  numbOfRandomBlockedNodes: 500
+  addRandomBlockedNode: 0
 --- !u!4 &1508223373
 Transform:
   m_ObjectHideFlags: 0

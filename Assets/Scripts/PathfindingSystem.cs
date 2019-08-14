@@ -1,6 +1,5 @@
 ﻿using Unity.Burst;
 using Unity.Collections;
-using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs;
 using Unity.Mathematics;
@@ -8,39 +7,46 @@ using Unity.Transforms;
 using UnityEngine;
 
 namespace Pathfinding
-{ 
+{
     public class PathfindingSystem : JobComponentSystem
     {
         NativeArray<Neighbour> neighbours;
-
-        //EndSimulationEntityCommandBufferSystem entityCommandBuffer;
-        //EntityQuery gridQuery;
-
         EntityQuery pathRequests;
 
         const int IterationLimit = 1000;
         public int2 worldSize;
 
+        public bool canMoveDiag;
+
         protected override void OnCreate()
         {
-            //Moved to manual for fast grid resizing test
-
-            //entityCommandBuffer = World.GetOrCreateSystem<EndSimulationEntityCommandBufferSystem>();
             pathRequests = GetEntityQuery(typeof(Waypoint), ComponentType.ReadOnly<PathRequest>(), ComponentType.ReadOnly<Translation>(), ComponentType.ReadOnly<NavigationCapabilities>());
             pathRequests.SetFilterChanged(typeof(PathRequest));
-            //gridQuery = GetEntityQuery(ComponentType.ReadOnly<Cell>());
 
-            neighbours = new NativeArray<Neighbour>(8, Allocator.Persistent)
+            if (canMoveDiag)
             {
-                [0] = new Neighbour(-1, -1), // Bottom left
-                [1] = new Neighbour(0, -1), // Bottom
-                [2] = new Neighbour(1, -1), // Bottom Right
-                [3] = new Neighbour(-1, 0), // Left
-                [4] = new Neighbour(1, 0), // Right
-                [5] = new Neighbour(-1, 1), // Top Left
-                [6] = new Neighbour(0, 1), // Top
-                [7] = new Neighbour(1, 1), // Top Right
-            };
+                neighbours = new NativeArray<Neighbour>(8, Allocator.Persistent)
+                {
+                    [0] = new Neighbour(-1, -1), // Bottom left
+                    [1] = new Neighbour(0, -1), // Bottom
+                    [2] = new Neighbour(1, -1), // Bottom Right
+                    [3] = new Neighbour(-1, 0), // Left
+                    [4] = new Neighbour(1, 0), // Right
+                    [5] = new Neighbour(-1, 1), // Top Left
+                    [6] = new Neighbour(0, 1), // Top
+                    [7] = new Neighbour(1, 1), // Top Right
+                };
+            }
+            else
+            {
+                neighbours = new NativeArray<Neighbour>(4, Allocator.Persistent)
+                {
+                    [0] = new Neighbour(0, -1), // Bottom
+                    [1] = new Neighbour(-1, 0), // Left
+                    [2] = new Neighbour(1, 0), // Right
+                    [3] = new Neighbour(0, 1), // Top
+                };
+            }
         }
 
         protected override void OnDestroy()
@@ -49,19 +55,15 @@ namespace Pathfinding
         }
 
         protected override JobHandle OnUpdate(JobHandle inputDeps)
-        {            
+        {
             int numberOfRequests = pathRequests.CalculateChunkCount();
             if (numberOfRequests == 0) return inputDeps;
-
-            //NativeArray<ArchetypeChunk> gridChunks = gridQuery.CreateArchetypeChunkArray(Allocator.TempJob);
 
             //Schedule the findPath to build <Waypoints> Job
             FindPathJobChunk findPathJob = new FindPathJobChunk()
             {
                 WaypointChunkBuffer = GetArchetypeChunkBufferType<Waypoint>(false),
                 PathRequestsChunkComponent = GetArchetypeChunkComponentType<PathRequest>(true),
-                //GridChunks = gridChunks,
-                //CellTypeRO = GetArchetypeChunkBufferType<Cell>(true),
                 CellArray = RequiredExtensions.cells,
                 TranslationsChunkComponent = GetArchetypeChunkComponentType<Translation>(true),
                 NavigationCapabilitiesChunkComponent = GetArchetypeChunkComponentType<NavigationCapabilities>(true),
@@ -73,18 +75,6 @@ namespace Pathfinding
             };
             JobHandle jobHandle = findPathJob.Schedule(pathRequests, inputDeps);
 
-            //Schedule the remove <PathSearcher> Job
-            //RemoveComponentJob removeComponentJob = new RemoveComponentJob()
-            //{
-            //    entityCommandBuffer = entityCommandBuffer.CreateCommandBuffer().ToConcurrent(),
-            //    WaypointChunkBuffer = GetArchetypeChunkBufferType<Waypoint>(true),
-            //    PathRequestsChunkComponent = GetArchetypeChunkComponentType<PathRequest>(true)
-
-            //};
-            //jobHandle = removeComponentJob.Schedule(pathRequests, jobHandle);
-
-            //entityCommandBuffer.AddJobHandleForProducer(jobHandle);
-
             return jobHandle;
         }
 
@@ -95,12 +85,7 @@ namespace Pathfinding
             [ReadOnly] public int DimY;
             [ReadOnly] public int Iterations;
             [ReadOnly] public int NeighborCount;
-
-            //[ReadOnly, DeallocateOnJobCompletion] public NativeArray<ArchetypeChunk> GridChunks;
-            //[ReadOnly] public ArchetypeChunkBufferType<Cell> CellTypeRO;
-
             [ReadOnly] public NativeArray<Cell> CellArray;
-
             [WriteOnly] public ArchetypeChunkBufferType<Waypoint> WaypointChunkBuffer;
             [ReadOnly] public ArchetypeChunkComponentType<PathRequest> PathRequestsChunkComponent;
             [ReadOnly] public NativeArray<Neighbour> Neighbors;
@@ -109,16 +94,11 @@ namespace Pathfinding
 
             public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
             {
-                //BufferAccessor<Cell> accessor = this.GridChunks[0].GetBufferAccessor(this.CellTypeRO);
-                //DynamicBuffer<Cell> grid = accessor[0].Reinterpret<Cell>();
-
-
                 int size = DimX * DimY;
                 BufferAccessor<Waypoint> Waypoints = chunk.GetBufferAccessor(WaypointChunkBuffer);
                 NativeArray<PathRequest> PathRequests = chunk.GetNativeArray(PathRequestsChunkComponent);
                 NativeArray<Translation> Translations = chunk.GetNativeArray(TranslationsChunkComponent);
                 NativeArray<NavigationCapabilities> NavigationCapabilities = chunk.GetNativeArray(NavigationCapabilitiesChunkComponent);
-
                 NativeArray<float> CostSoFar = new NativeArray<float>(size * chunk.Count, Allocator.Temp);
                 NativeArray<int2> CameFrom = new NativeArray<int2>(size * chunk.Count, Allocator.Temp);
                 NativeMinHeap OpenSet = new NativeMinHeap((Iterations + 1) * Neighbors.Length * chunk.Count, Allocator.Temp);
@@ -132,52 +112,43 @@ namespace Pathfinding
                     NativeMinHeap openSet = OpenSet.Slice(i * openSetSize, openSetSize);
                     PathRequest request = PathRequests[i];
 
-                    // Clear our shared data
-                    //var buffer = costSoFar.GetUnsafePtr();
-                    //UnsafeUtility.MemClear(buffer, (long)costSoFar.Length * UnsafeUtility.SizeOf<float>());
-                    //openSet.Clear();
-
                     Translation currentPosition = Translations[i];
-                        NavigationCapabilities capability = NavigationCapabilities[i];
+                    NavigationCapabilities capability = NavigationCapabilities[i];
 
-                        // cache these as they're used a lot
-                        int2 start = currentPosition.Value.xy.FloorToInt();
-                        int2 goal = request.end;
-                        
-                        
+                    // cache these as they're used a lot
+                    int2 start = currentPosition.Value.xy.FloorToInt();
+                    int2 goal = request.end;
 
-                        DynamicBuffer<float3> waypoints = Waypoints[i].Reinterpret<float3>();
-                        waypoints.Clear();
+                    DynamicBuffer<float3> waypoints = Waypoints[i].Reinterpret<float3>();
+                    waypoints.Clear();
 
-                        // Special case when the start is the same point as the goal
-                        if (start.Equals(goal))
-                        {
-                            // We just set the destination as the goal, but need to get the correct height
-                            int gridIndex = this.GetIndex(goal);
-                            Cell cell = CellArray[gridIndex];
-                            float3 point = new float3(request.Destination.x, request.Destination.y, cell.Height);
-                            waypoints.Add(point);
-                            continue;
-                        }
+                    // Special case when the start is the same point as the goal
+                    if (start.Equals(goal))
+                    {
+                        // We just set the destination as the goal, but need to get the correct height
+                        int gridIndex = this.GetIndex(goal);
+                        Cell cell = CellArray[gridIndex];
+                        float3 point = new float3(request.Destination.x, request.Destination.y, cell.Height);
+                        waypoints.Add(point);
+                        continue;
+                    }
 
-                        var stash = new InstanceStash
-                        {
-                            Grid = CellArray,
-                            CameFrom = cameFrom,
-                            CostSoFar = costSoFar,
-                            OpenSet = openSet,
-                            Request = request,
-                            Capability = capability,
-                            CurrentPosition = currentPosition,
-                            Start = start,
-                            Goal = goal,
-                            Waypoints = waypoints,
-                        };
+                    var stash = new InstanceStash
+                    {
+                        Grid = CellArray,
+                        CameFrom = cameFrom,
+                        CostSoFar = costSoFar,
+                        OpenSet = openSet,
+                        Request = request,
+                        Capability = capability,
+                        CurrentPosition = currentPosition,
+                        Start = start,
+                        Goal = goal,
+                        Waypoints = waypoints,
+                    };
 
-                        if (this.ProcessPath(ref stash))
-                        {
-                            this.ReconstructPath(stash);
-                        }
+                    if (this.ProcessPath(ref stash))
+                        this.ReconstructPath(stash);
                 }
                 CostSoFar.Dispose();
                 CameFrom.Dispose();
@@ -195,7 +166,6 @@ namespace Pathfinding
             bool ProcessPath(ref InstanceStash stash)
             {
                 // Push the start to NativeMinHeap openSet
-
                 float hh = H(stash.Start, stash.Goal);
                 MinHeapNode head = new MinHeapNode(stash.Start, hh, hh);
                 stash.OpenSet.Push(head);
@@ -211,7 +181,6 @@ namespace Pathfinding
 
                     if (current.DistanceToGoal < closest.DistanceToGoal)
                         closest = current;
-
                     // Found our goal
                     if (current.Position.Equals(stash.Goal))
                         return true;
@@ -228,11 +197,9 @@ namespace Pathfinding
                         }
                         return false;
                     }
-
                     iterations--;
 
                     var initialCost = stash.CostSoFar[this.GetIndex(current.Position)];
-
                     var fromIndex = this.GetIndex(current.Position);
 
                     // Loop our potential cells - generally neighbours but could include portals
@@ -243,9 +210,7 @@ namespace Pathfinding
 
                         // Make sure the node isn't outside our grid
                         if (position.x < 0 || position.x >= this.DimX || position.y < 0 || position.y >= this.DimY)
-                        {
                             continue;
-                        }
 
                         var index = this.GetIndex(position);
 
@@ -254,18 +219,14 @@ namespace Pathfinding
 
                         // Infinity means the cell is un-walkable, skip it
                         if (float.IsInfinity(cellCost))
-                        {
                             continue;
-                        }
 
                         var newCost = initialCost + (neighbour.Distance * cellCost);
                         var oldCost = stash.CostSoFar[index];
 
                         // If we've explored this cell before and it was a better path, ignore this route
                         if (!(oldCost <= 0) && !(newCost < oldCost))
-                        {
                             continue;
-                        }
 
                         // Update the costing and best path
                         stash.CostSoFar[index] = newCost;
@@ -291,6 +252,7 @@ namespace Pathfinding
             void ReconstructPath(InstanceStash stash)
             {
                 var current = stash.CameFrom[this.GetIndex(stash.Goal)];
+
                 var from = this.GetPosition(stash.Grid, current);
 
                 stash.Waypoints.Add(from);
@@ -333,14 +295,10 @@ namespace Pathfinding
                     var index = this.GetIndex(point.FloorToInt());
                     var cell = buffer[index];
                     if (cell.Blocked)
-                    {
                         return false;
-                    }
 
                     if (cell.Height != currentCell.Height)
-                    {
                         return false;
-                    }
                 }
                 return true;
             }
@@ -349,15 +307,11 @@ namespace Pathfinding
             {
                 var target = grid[toIndex];
                 if (target.Blocked)
-                {
                     return float.PositiveInfinity;
-                }
 
                 // If we're not neighbours, then we're a portal and can just go straight there
                 if (!areNeighbours)
-                {
                     return 1;
-                }
 
                 var from = grid[fromIndex];
 
@@ -369,22 +323,16 @@ namespace Pathfinding
                 var climbHeight = 0;
 
                 if (heightDiff > 0)
-                {
                     climbHeight = absDiff;
-                }
                 else
-                {
                     dropHeight = absDiff;
-                }
 
                 var slope = math.degrees(math.atan(absDiff / neighbour.Distance));
 
                 // TODO End precompute
                 if ((capabilities.MaxClimbHeight < climbHeight || capabilities.MaxDropHeight < dropHeight) &&
                     capabilities.MaxSlopeAngle < slope)
-                {
                     return float.PositiveInfinity;
-                }
 
                 return 1;
             }
@@ -399,10 +347,10 @@ namespace Pathfinding
 
             int GetIndex(int2 i)
             {
-                if (DimX > DimY)
-                    return (i.y * DimY) + i.x;
+                if (DimY >= DimX)
+                    return (i.x * DimY) + i.y;
                 else
-                    return (i.x * DimX) + i.y;
+                    return (i.y * DimX) + i.x;
             }
 
             struct InstanceStash
@@ -422,26 +370,5 @@ namespace Pathfinding
                 public NativeMinHeap OpenSet;
             }
         }
-
-        //struct RemoveComponentJob : IJobChunk
-        //{
-        //    public EntityCommandBuffer.Concurrent entityCommandBuffer;
-        //    [ReadOnly] public ArchetypeChunkBufferType<Waypoint> WaypointChunkBuffer;
-        //    [ReadOnly] public ArchetypeChunkComponentType<PathRequest> PathRequestsChunkComponent;
-
-        //    public void Execute(ArchetypeChunk chunk, int chunkIndex, int firstEntityIndex)
-        //    {
-        //        BufferAccessor<Waypoint> Waypoints = chunk.GetBufferAccessor(WaypointChunkBuffer);
-        //        NativeArray<PathRequest> PathRequests = chunk.GetNativeArray(PathRequestsChunkComponent);
-
-
-
-        //        for (int i = 0; i < chunk.Count; i++)
-        //        {
-        //            if (Waypoints[i].Length > 0)
-        //                entityCommandBuffer.RemoveComponent(chunkIndex + i, PathRequests[i].Entity, typeof(PathRequest));
-        //        }
-        //    }
-        //}
-    }        
+    }
 }
