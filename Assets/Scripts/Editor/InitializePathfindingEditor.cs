@@ -18,8 +18,16 @@ namespace Pathfinding
 
         SerializedProperty size;
 
+        SerializedProperty cellMaterial => serializedObject.FindProperty("instanceCellMaterial");
+        SerializedProperty cellBlockedMaterial => serializedObject.FindProperty("instanceCellBlockedMaterial");
+        SerializedProperty instancedMeshWalkable => serializedObject.FindProperty("instancedMeshWalkable");
+        SerializedProperty instancedMeshBlocked => serializedObject.FindProperty("instancedMeshBlocked");
+        SerializedProperty instancedSpacing => serializedObject.FindProperty("instancedSpacing");
+        SerializedProperty instancedScale => serializedObject.FindProperty("instancedScale");
+
         bool showBlocked;
         bool showPaths;
+        bool showInstancing;
 
         public override void OnInspectorGUI()
         {
@@ -34,6 +42,11 @@ namespace Pathfinding
 
             if (showBlocked)
                 ShowBlockedNodes();
+
+            showInstancing = EditorGUILayout.Foldout(showInstancing, "Instancing");
+
+            if (showInstancing)
+                ShowInstancing();
         }
 
         void ShowPaths()
@@ -62,6 +75,32 @@ namespace Pathfinding
 
             if (GUILayout.Button("Add Manual Blocked Node"))
                 pathfinding.addManualBlockedNode = true;
+
+            serializedObject.ApplyModifiedProperties();
+        }
+
+        void ShowInstancing()
+        {
+            EditorGUILayout.PropertyField(instancedMeshWalkable, new GUIContent("Cell Mesh"));
+            EditorGUILayout.PropertyField(instancedMeshBlocked, new GUIContent("Obstacle Mesh"));
+            EditorGUILayout.Space();
+            EditorGUILayout.PropertyField(instancedScale, new GUIContent("Scale"));
+            EditorGUILayout.PropertyField(instancedSpacing, new GUIContent("Spacing"));
+            EditorGUILayout.Space();
+            
+            if (GUILayout.Button("Apply"))
+                pathfinding.InitMatrices();
+            
+            if (GUILayout.Button("Update paths"))
+                pathfinding.UpdatePaths();
+            
+            EditorGUILayout.Space();
+            
+            EditorGUILayout.LabelField("Materials");
+            EditorGUILayout.Space();
+
+            EditorGUILayout.PropertyField(cellMaterial, new GUIContent("Walkable Cells"));
+            EditorGUILayout.PropertyField(cellBlockedMaterial, new GUIContent("Blocked Cells"));
 
             serializedObject.ApplyModifiedProperties();
         }
