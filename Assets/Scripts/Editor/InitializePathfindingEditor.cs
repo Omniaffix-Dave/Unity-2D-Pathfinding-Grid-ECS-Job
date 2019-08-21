@@ -87,12 +87,15 @@ namespace Pathfinding
             EditorGUILayout.PropertyField(instancedScale, new GUIContent("Scale"));
             EditorGUILayout.PropertyField(instancedSpacing, new GUIContent("Spacing"));
             EditorGUILayout.Space();
-            
-            if (GUILayout.Button("Apply"))
+
+            if (GUILayout.Button("Apply Scale and Spacing"))
+            {
                 pathfinding.InitMatrices();
+                pathfinding.UpdatePathsDisplay();
+            }
             
-            if (GUILayout.Button("Update paths"))
-                pathfinding.UpdatePaths();
+            if (GUILayout.Button("Update Paths Display"))
+                pathfinding.UpdatePathsDisplay();
             
             EditorGUILayout.Space();
             

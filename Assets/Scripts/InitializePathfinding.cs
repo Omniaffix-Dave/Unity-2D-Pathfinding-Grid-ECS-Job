@@ -217,36 +217,41 @@ namespace Pathfinding
 
                 foreach (Entity entity in actualGroup)
                 {
+                    var pathRequest = entityManager.GetComponentData<PathRequest>(entity);
                     var buffer = entityManager.GetBuffer<Waypoint>(entity);
+                    
+                    var lineRenderer = pathRenderer.GetLineRenderer();
+                    Queue<Vector3> positions = new Queue<Vector3>();
+                    Vector3 start = new Vector3(pathRequest.start.x, pathRequest.start.y) * spacing;
+                    Vector3 end = new Vector3(pathRequest.end.x, pathRequest.end.y) * spacing; 
+                    
+                    positions.Enqueue(start);
                     
                     if (buffer.Length > 0)
                     {
-                        
-                        //TODO draw lines properly. Right now it's looks wrong.
-                        if (false)
+                        for (int i = 0; i < buffer.Length; i++)
                         {
-                            var lineRenderer = pathRenderer.GetLineRenderer();
-                            Queue<Vector3> positions = new Queue<Vector3>();
-                        
-                            for (int i = 0; i < buffer.Length - 1; i++)
-                            {
-                                positions.Enqueue((buffer[i].waypoints - .5f) * spacing);
-                                positions.Enqueue((buffer[i + 1].waypoints - .5f) * spacing);
-                            }
-                        
-                            lineRenderer.SetPositions(positions.ToArray());
+                            positions.Enqueue((buffer[i].waypoints) * spacing);
+                            //positions.Enqueue((buffer[i + 1].waypoints - .5f) * spacing);
                         }
                     }
                     
-                    
+                    //positions.Enqueue(end);
+                    lineRenderer.positionCount = positions.Count;
+                    lineRenderer.SetPositions(positions.ToArray());
                 }
                 actualGroup.Dispose();
             }
         }
 
-        public void UpdatePaths()
+        public void UpdatePathsDisplay()
         {
-            VisualizePaths();
+            //TODO hide paths when showPaths changed automatically.
+            if(showPaths) {    VisualizePaths();    }
+            else
+            {
+                pathRenderer.Clear();
+            }
         }
         
         public void CreateBlockedNodes()

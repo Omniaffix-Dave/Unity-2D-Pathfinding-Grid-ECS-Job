@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 8670071886714534520}
   - component: {fileID: 8670071886714534527}
   m_Layer: 0
-  m_Name: Path (LineRenderer)
+  m_Name: Path_a (LineRenderer)
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
