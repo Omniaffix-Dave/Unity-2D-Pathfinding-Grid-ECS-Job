@@ -3,11 +3,11 @@ using UnityEditor;
 
 namespace Pathfinding
 {
-    [CustomEditor(typeof(InitializePathfinding))]
+    [CustomEditor(typeof(PathfindingManager))]
     //[CanEditMultipleObjects]
     public class InitializerEditor : Editor
     {
-        InitializePathfinding pathfinding => (InitializePathfinding)target;
+        PathfindingManager PathfindingManager => (PathfindingManager)target;
 
         SerializedProperty numberOfRandomPaths => serializedObject.FindProperty("numOfRandomPaths");
         SerializedProperty startManualPath => serializedObject.FindProperty("start");
@@ -54,13 +54,13 @@ namespace Pathfinding
             EditorGUILayout.PropertyField(numberOfRandomPaths, new GUIContent("Number To Generate"));
             if (GUILayout.Button("Add Random Paths"))
             {
-                pathfinding.searchRandomPaths = true;
+                PathfindingManager.searchRandomPaths = true;
             }
 
             EditorGUILayout.PropertyField(startManualPath, new GUIContent("Start Node"));
             EditorGUILayout.PropertyField(endManualPath, new GUIContent("End Node"));
             if (GUILayout.Button("Add Manual Path"))
-                pathfinding.searchManualPath = true;
+                PathfindingManager.searchManualPath = true;
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -69,12 +69,12 @@ namespace Pathfinding
         {
             EditorGUILayout.PropertyField(numberOfBlocksToAdd, new GUIContent("Number To Generate"));
             if (GUILayout.Button("Add Random Blocked Nodes"))
-                pathfinding.addRandomBlockedNode = true;
+                PathfindingManager.addRandomBlockedNode = true;
             
             EditorGUILayout.PropertyField(manualBlockNode);
 
             if (GUILayout.Button("Add Manual Blocked Node"))
-                pathfinding.addManualBlockedNode = true;
+                PathfindingManager.addManualBlockedNode = true;
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -90,12 +90,12 @@ namespace Pathfinding
 
             if (GUILayout.Button("Apply Scale and Spacing"))
             {
-                pathfinding.InitMatrices();
-                pathfinding.UpdatePathsDisplay();
+                PathfindingManager.InitMatrices();
+                PathfindingManager.UpdatePathsDisplay();
             }
             
             if (GUILayout.Button("Update Paths Display"))
-                pathfinding.UpdatePathsDisplay();
+                PathfindingManager.UpdatePathsDisplay();
             
             EditorGUILayout.Space();
             

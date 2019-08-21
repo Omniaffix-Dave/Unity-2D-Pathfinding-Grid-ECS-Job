@@ -1,4 +1,7 @@
 ﻿using UnityEngine;
+using Pathfinding;
+using Unity.Mathematics;
+using UnityEngine.Serialization;
 
 namespace UnityTemplateProjects
 {
@@ -8,15 +11,23 @@ namespace UnityTemplateProjects
         public float speedUp = 3f;
 
         public Vector2 zoomMinMax = new Vector2(10, 70);
+        [FormerlySerializedAs("cursor")] public Material cursorMaterial;
         
-        static Plane XZPlane = new Plane(Vector3.up, Vector3.zero);
+        static Plane XYPlane = new Plane(Vector3.forward, Vector3.zero);
         private Camera main;
         private Transform tf;
 
+        private Vector3 lastMousePosition = Vector3.negativeInfinity;
+
+        private PathfindingManager pathfindingManager;
+        
+        
         void OnEnable()
         {
             tf = GetComponent<Transform>();
             main = GetComponent<Camera>();
+
+            pathfindingManager = FindObjectOfType<PathfindingManager>();
         }
 
         Vector3 GetInputTranslationDirection()
@@ -44,14 +55,15 @@ namespace UnityTemplateProjects
         
         private void Update()
         {
+            //Zoom
             var mouseWheel = Input.mouseScrollDelta.y;
-
             if (mouseWheel != 0)
             {
                 var size = Mathf.Clamp(main.orthographicSize - (mouseWheel * 3), zoomMinMax.x, zoomMinMax.y);
                 main.orthographicSize = size;
             }
 
+            //Quit
             if (Input.GetKey(KeyCode.Escape))
             {
                 Application.Quit();
@@ -72,18 +84,56 @@ namespace UnityTemplateProjects
             var temp = tf.position;
             temp += ((translation * speed) * Time.smoothDeltaTime);
             tf.position = temp;
+            
+            DrawObstacles();
         }
 
+        //Use mouse to draw some obstacles
+        private void DrawObstacles()
+        {
+            if (pathfindingManager.visualMode != PathfindingManager.VisualMode.Gizmo)
+            {
+                float spacing = pathfindingManager.instancedScale * pathfindingManager.instancedSpacing;
+                Vector3 mousePosition = GetMousePositionOnXZPlane();
+                mousePosition.x = Mathf.Round(mousePosition.x / spacing) * spacing;
+                mousePosition.y = Mathf.Round(mousePosition.y / spacing) * spacing;
+                
+                Matrix4x4 trs = Matrix4x4.TRS(mousePosition, Quaternion.identity, new Vector3(spacing, spacing, spacing));
+                
+                Graphics.DrawMesh(pathfindingManager.instancedMeshBlocked, trs, cursorMaterial, 0);
+                
+                if(Input.GetMouseButton(0)) //LMB draw
+                {
+                    if(mousePosition == lastMousePosition) return;
+                    lastMousePosition = mousePosition;
+                    
+                    mousePosition /= spacing;
+                    pathfindingManager.SetBlockedCell(new int2((int) mousePosition.x, (int) mousePosition.y));
+                    pathfindingManager.InitMatrices();
+                }
+
+                if (Input.GetMouseButton(1)) //RMB erase
+                {
+                    if(mousePosition == lastMousePosition) return;
+                    lastMousePosition = mousePosition;
+                    
+                    mousePosition /= spacing;
+                    pathfindingManager.SetWalkableCell(new int2((int) mousePosition.x, (int) mousePosition.y));
+                    pathfindingManager.InitMatrices();
+                }
+            }
+        }
+        
         private Vector3 GetMousePositionOnXZPlane() 
         {
             float distance;
             var ray = main.ScreenPointToRay(Input.mousePosition);
             
-            if(XZPlane.Raycast (ray, out distance)) 
+            if(XYPlane.Raycast (ray, out distance)) 
             {
                 Vector3 hitPoint = ray.GetPoint(distance);
 
-                hitPoint.y = 0;
+                hitPoint.z = 0;
                 return hitPoint;
             }
             
