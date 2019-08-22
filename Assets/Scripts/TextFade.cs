@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 
-namespace DefaultNamespace
+namespace UnityTemplateProjects
 {
     [RequireComponent(typeof(Text))]
     public class TextFade : UnityEngine.MonoBehaviour
@@ -108,6 +108,11 @@ namespace DefaultNamespace
                 text.color = initialColor;
                 this.gameObject.SetActive(false);
             }
+        }
+
+        public void Hide()
+        {
+            waitedAlready = wait;
         }
     }
 }

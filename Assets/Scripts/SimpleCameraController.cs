@@ -11,7 +11,9 @@ namespace UnityTemplateProjects
         public float speedUp = 3f;
 
         public Vector2 zoomMinMax = new Vector2(10, 70);
-        [FormerlySerializedAs("cursor")] public Material cursorMaterial;
+        public Material cursorMaterial, startPointMaterial, endPointMaterial;
+
+        public TextFade help;
         
         static Plane XYPlane = new Plane(Vector3.forward, Vector3.zero);
         private Camera main;
@@ -55,6 +57,15 @@ namespace UnityTemplateProjects
         
         private void Update()
         {
+            if (Input.GetKeyDown(KeyCode.F1))
+            {
+                if(!help.gameObject.activeSelf) {    help.gameObject.SetActive(true);    }
+                else
+                {
+                    help.Hide();
+                }
+            }
+            
             //Zoom
             var mouseWheel = Input.mouseScrollDelta.y;
             if (mouseWheel != 0)
@@ -102,6 +113,15 @@ namespace UnityTemplateProjects
                 
                 Graphics.DrawMesh(pathfindingManager.instancedMeshBlocked, trs, cursorMaterial, 0);
                 
+                trs.m03 = pathfindingManager.start.x * spacing;
+                trs.m13 = pathfindingManager.start.y * spacing;
+                Graphics.DrawMesh(pathfindingManager.instancedMeshBlocked, trs, startPointMaterial, 0);
+                
+                trs.m03 = pathfindingManager.end.x * spacing;
+                trs.m13 = pathfindingManager.end.y * spacing;
+                Graphics.DrawMesh(pathfindingManager.instancedMeshBlocked, trs, endPointMaterial, 0);
+                
+                
                 if(Input.GetMouseButton(0)) //LMB draw
                 {
                     if(mousePosition == lastMousePosition) return;
@@ -119,6 +139,36 @@ namespace UnityTemplateProjects
                     
                     mousePosition /= spacing;
                     pathfindingManager.SetWalkableCell(new int2((int) mousePosition.x, (int) mousePosition.y));
+                    pathfindingManager.InitMatrices();
+                }
+
+                if (Input.GetMouseButtonDown(2))
+                {
+                    lastMousePosition = mousePosition;
+                    
+                    mousePosition /= spacing;
+                    pathfindingManager.SetWalkableCell(new int2((int) mousePosition.x, (int) mousePosition.y));
+
+                    if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                    {
+                        pathfindingManager.start = new Vector2Int((int) mousePosition.x, (int) mousePosition.y);
+                    }
+                    else
+                    {
+                        pathfindingManager.end = new Vector2Int((int) mousePosition.x, (int) mousePosition.y);
+                    }
+                    
+                    pathfindingManager.InitMatrices();
+                }
+
+                if (Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Return))
+                {
+                    pathfindingManager.searchManualPath = true;
+                }
+
+                if (Input.GetKeyDown(KeyCode.F5)) //F5 to update
+                {
+                    pathfindingManager.UpdatePathsDisplay();
                     pathfindingManager.InitMatrices();
                 }
             }

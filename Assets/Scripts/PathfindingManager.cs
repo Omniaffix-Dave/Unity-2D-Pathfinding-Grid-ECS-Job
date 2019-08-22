@@ -123,6 +123,7 @@ namespace Pathfinding
         //Display grid info with instancing.
         private void VisualizeGrid()
         {
+            //Walkable cells might be replaced with single large quad.
             for (int i = 0; i < matricesWalkable.Length; i++)
             {
                 Graphics.DrawMeshInstanced(instancedMeshWalkable, 0, instanceCellMaterial, 
@@ -216,7 +217,8 @@ namespace Pathfinding
                 pathRenderer.Clear();
                 
                 float spacing = (instancedSpacing * instancedScale); //Make cell spacing relative to established in inspector scale.
-
+                float3 offset = new Vector3(spacing * .5f, spacing * .5f, 0); //Ground path at the center of cells.
+                
                 foreach (Entity entity in actualGroup)
                 {
                     var pathRequest = entityManager.GetComponentData<PathRequest>(entity);
@@ -224,8 +226,8 @@ namespace Pathfinding
                     
                     var lineRenderer = pathRenderer.GetLineRenderer();
                     Queue<Vector3> positions = new Queue<Vector3>();
-                    Vector3 start = new Vector3(pathRequest.start.x, pathRequest.start.y) * spacing;
-                    Vector3 end = new Vector3(pathRequest.end.x, pathRequest.end.y) * spacing; 
+                    float3 start = (new float3(pathRequest.start.x, pathRequest.start.y, 0) * spacing);
+                    float3 end = (new float3(pathRequest.end.x, pathRequest.end.y, 0) * spacing) - offset; 
                     
                     positions.Enqueue(start);
                     
@@ -233,7 +235,7 @@ namespace Pathfinding
                     {
                         for (int i = 0; i < buffer.Length; i++)
                         {
-                            positions.Enqueue((buffer[i].waypoints) * spacing);
+                            positions.Enqueue(((buffer[i].waypoints) * spacing) - offset);
                             //positions.Enqueue((buffer[i + 1].waypoints - .5f) * spacing);
                         }
                     }
@@ -401,12 +403,9 @@ namespace Pathfinding
 }
 
 //Making better testing workflow.
-//TODO Using mouse for obstacles placing and new path creation.
 //TODO Perlin noise for obstacles map generation.
 //TODO Tools panel with some options, like "Clear all"? Saving&Loading obstacles&path scenarios to file?
-//TODO Scale camera with current grid size.
 
 //Research
 //TODO Check deadlock at high obstacles density and with negative values in path positions.
-//TODO Is using entities for each waypoint is fine? Wouldn't it be more convenient to store whole path data on associated entity?
 //TODO Check for simulation of multiple grids at once.
