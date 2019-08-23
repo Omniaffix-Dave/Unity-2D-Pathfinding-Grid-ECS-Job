@@ -50,6 +50,9 @@ namespace Pathfinding
         [HideInInspector] public float gridSpacing = 1.1f;
         [HideInInspector] public float gridScale = 1;
 
+        [HideInInspector] public float noiseLevel = 0.35f;
+        [HideInInspector] public float noiseScale = 10;
+        
         private const int instancesLimit = 1023; //DrawMeshInstanced can only draw a maximum of 1023 instances at once.
         private Matrix4x4[][] matricesWalkable;
         private Matrix4x4[][] matricesObstacles;
@@ -61,8 +64,7 @@ namespace Pathfinding
         int previousSize; // Prevent GUI Errors
         public enum VisualMode { Gizmo, Instancing, Both };
 
-        public float noiseLevel = 0.35f;
-        public float noiseScale = 10;
+        
 
         private void Awake()
         {
