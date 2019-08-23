@@ -67,13 +67,13 @@ namespace Pathfinding
     {
         public float3 waypoints;
     }
-    public struct Cell
+    public struct Node
     {
-        public bool Blocked
+        public bool Obstacle
         {
-            get { return Convert.ToBoolean(blocked); }
+            get { return Convert.ToBoolean(obstacle); }
         }
         public int Height;
-        public byte blocked;
+        public byte obstacle;
     }
 }

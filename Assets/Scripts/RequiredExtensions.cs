@@ -7,7 +7,7 @@ namespace Pathfinding
 {
     public static class RequiredExtensions
     {
-        public static NativeArray<Cell> cells;
+        public static NativeArray<Node> nodes;
 
         public static void Reverse<T>(this DynamicBuffer<T> buffer)
             where T : struct

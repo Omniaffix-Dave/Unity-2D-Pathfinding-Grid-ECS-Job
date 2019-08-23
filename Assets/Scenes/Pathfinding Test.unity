@@ -520,20 +520,20 @@ MonoBehaviour:
   start: {x: 0, y: 0}
   end: {x: 99, y: 99}
   searchManualPath: 0
-  numOfRandomPaths: 50
+  randomPathsCount: 50
   searchRandomPaths: 0
-  blockedNode: {x: 0, y: 0}
-  addManualBlockedNode: 0
-  numbOfRandomBlockedNodes: 500
-  addRandomBlockedNode: 0
-  instanceCellMaterial: {fileID: 2100000, guid: dad49fb02882c1741b8cc0f296f3dfca,
-    type: 2}
-  instanceCellBlockedMaterial: {fileID: 2100000, guid: 53bb4b96f5b598140baa9680ff56ac0c,
-    type: 2}
-  instancedMeshWalkable: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
-  instancedMeshBlocked: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
-  instancedSpacing: 1
-  instancedScale: 2
+  obstacleNode: {x: 0, y: 0}
+  addObstacleManually: 0
+  randomObstaclesCount: 1
+  addRandomObstacles: 0
+  nodeMaterial: {fileID: 2100000, guid: dad49fb02882c1741b8cc0f296f3dfca, type: 2}
+  obstacleMaterial: {fileID: 2100000, guid: 53bb4b96f5b598140baa9680ff56ac0c, type: 2}
+  walkableMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+  obstacleMesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+  gridSpacing: 1
+  gridScale: 2
+  noiseLevel: 0.35
+  noiseScale: 10
 --- !u!4 &1508223373
 Transform:
   m_ObjectHideFlags: 0
@@ -561,7 +561,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   poolSize: 50
-  lineRendererPrefab: {fileID: 8670071886714534521, guid: c16a3b47480017846a5e587fa7fd0946,
+  lineRendererPrefab: {fileID: 8670071886714534521, guid: cbcda64b38346264e961507131a11a1d,
     type: 3}
 --- !u!1 &1705053114
 GameObject:
@@ -682,9 +682,12 @@ MonoBehaviour:
     Enter - find selected path.
 
 
-    F5 - update grid&path display.
-
     Delete - clear obstacles map.
+
+
+    F2 - generate obstacles map with perlin noise.
+
+    F5 - update grid&path display.
 
 
     WASD - controll.

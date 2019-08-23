@@ -104,22 +104,22 @@ namespace UnityTemplateProjects
         {
             if (pathfindingManager.visualMode != PathfindingManager.VisualMode.Gizmo)
             {
-                float spacing = pathfindingManager.instancedScale * pathfindingManager.instancedSpacing;
+                float spacing = pathfindingManager.gridScale * pathfindingManager.gridSpacing;
                 Vector3 mousePosition = GetMousePositionOnXZPlane();
                 mousePosition.x = Mathf.Round(mousePosition.x / spacing) * spacing;
                 mousePosition.y = Mathf.Round(mousePosition.y / spacing) * spacing;
                 
                 Matrix4x4 trs = Matrix4x4.TRS(mousePosition, Quaternion.identity, new Vector3(spacing, spacing, spacing));
                 
-                Graphics.DrawMesh(pathfindingManager.instancedMeshBlocked, trs, cursorMaterial, 0);
+                Graphics.DrawMesh(pathfindingManager.obstacleMesh, trs, cursorMaterial, 0);
                 
                 trs.m03 = pathfindingManager.start.x * spacing;
                 trs.m13 = pathfindingManager.start.y * spacing;
-                Graphics.DrawMesh(pathfindingManager.instancedMeshBlocked, trs, startPointMaterial, 0);
+                Graphics.DrawMesh(pathfindingManager.obstacleMesh, trs, startPointMaterial, 0);
                 
                 trs.m03 = pathfindingManager.end.x * spacing;
                 trs.m13 = pathfindingManager.end.y * spacing;
-                Graphics.DrawMesh(pathfindingManager.instancedMeshBlocked, trs, endPointMaterial, 0);
+                Graphics.DrawMesh(pathfindingManager.obstacleMesh, trs, endPointMaterial, 0);
                 
                 
                 if(Input.GetMouseButton(0)) //LMB draw
@@ -128,8 +128,8 @@ namespace UnityTemplateProjects
                     lastMousePosition = mousePosition;
                     
                     mousePosition /= spacing;
-                    pathfindingManager.SetBlockedCell(new int2((int) mousePosition.x, (int) mousePosition.y));
-                    pathfindingManager.InitMatrices();
+                    pathfindingManager.SetObstacle(new int2((int) mousePosition.x, (int) mousePosition.y));
+                    pathfindingManager.UpdateMatrices();
                 }
 
                 if (Input.GetMouseButton(1)) //RMB erase
@@ -138,8 +138,8 @@ namespace UnityTemplateProjects
                     lastMousePosition = mousePosition;
                     
                     mousePosition /= spacing;
-                    pathfindingManager.SetWalkableCell(new int2((int) mousePosition.x, (int) mousePosition.y));
-                    pathfindingManager.InitMatrices();
+                    pathfindingManager.SetNodeWalkable(new int2((int) mousePosition.x, (int) mousePosition.y));
+                    pathfindingManager.UpdateMatrices();
                 }
 
                 if (Input.GetMouseButtonDown(2))
@@ -147,7 +147,7 @@ namespace UnityTemplateProjects
                     lastMousePosition = mousePosition;
                     
                     mousePosition /= spacing;
-                    pathfindingManager.SetWalkableCell(new int2((int) mousePosition.x, (int) mousePosition.y));
+                    pathfindingManager.SetNodeWalkable(new int2((int) mousePosition.x, (int) mousePosition.y));
 
                     if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
                     {
@@ -158,7 +158,7 @@ namespace UnityTemplateProjects
                         pathfindingManager.end = new Vector2Int((int) mousePosition.x, (int) mousePosition.y);
                     }
                     
-                    pathfindingManager.InitMatrices();
+                    pathfindingManager.UpdateMatrices();
                 }
 
                 if (Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Return))
@@ -169,12 +169,17 @@ namespace UnityTemplateProjects
                 if (Input.GetKeyDown(KeyCode.F5)) //F5 to update
                 {
                     pathfindingManager.UpdatePathsDisplay();
-                    pathfindingManager.InitMatrices();
+                    pathfindingManager.UpdateMatrices();
                 }
 
                 if (Input.GetKeyDown(KeyCode.Delete))
                 {
                     pathfindingManager.ClearObstaclesMap();
+                }
+
+                if (Input.GetKeyDown(KeyCode.F2))
+                {
+                    pathfindingManager.GeneratePerlinNoiseObstacles();
                 }
             }
         }

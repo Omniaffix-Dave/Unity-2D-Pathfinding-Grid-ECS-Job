@@ -30,29 +30,29 @@ namespace Pathfinding
 
 
         //Random Path
-        [HideInInspector] public int numOfRandomPaths;
+        [HideInInspector] public int randomPathsCount;
         [HideInInspector] public bool searchRandomPaths;
 
         //Manual blocked
-        List<int2> blockedNodes = new List<int2>();
-        [HideInInspector] public Vector2Int blockedNode;
-        [HideInInspector] public bool addManualBlockedNode;
+        List<int2> obstacleNodes = new List<int2>();
+        [HideInInspector] public Vector2Int obstacleNode;
+        [HideInInspector] public bool addObstacleManually;
 
         //Random blocked
-        [HideInInspector] public int numbOfRandomBlockedNodes = 1;
-        [HideInInspector] public bool addRandomBlockedNode;
+        [HideInInspector] public int randomObstaclesCount = 1;
+        [HideInInspector] public bool addRandomObstacles;
 
         //Instancing settings
-        [HideInInspector] public Material instanceCellMaterial;
-        [HideInInspector] public Material instanceCellBlockedMaterial;
-        [HideInInspector] public Mesh instancedMeshWalkable;
-        [HideInInspector] public Mesh instancedMeshBlocked;
-        [HideInInspector] public float instancedSpacing = 1.1f;
-        [HideInInspector] public float instancedScale = 1;
+        [HideInInspector] public Material nodeMaterial;
+        [HideInInspector] public Material obstacleMaterial;
+        [HideInInspector] public Mesh walkableMesh;
+        [HideInInspector] public Mesh obstacleMesh;
+        [HideInInspector] public float gridSpacing = 1.1f;
+        [HideInInspector] public float gridScale = 1;
 
         private const int instancesLimit = 1023; //DrawMeshInstanced can only draw a maximum of 1023 instances at once.
         private Matrix4x4[][] matricesWalkable;
-        private Matrix4x4[][] matricesBlocked;
+        private Matrix4x4[][] matricesObstacles;
 
         private PathRenderer pathRenderer;
         private List<Vector3> obstaclesToAdd = new List<Vector3>();
@@ -61,6 +61,8 @@ namespace Pathfinding
         int previousSize; // Prevent GUI Errors
         public enum VisualMode { Gizmo, Instancing, Both };
 
+        public float noiseLevel = 0.35f;
+        public float noiseScale = 10;
 
         private void Awake()
         {
@@ -69,7 +71,8 @@ namespace Pathfinding
             CreateGrid();
             
             pathRenderer = GetComponent<PathRenderer>();
-            addRandomBlockedNode = true;
+            
+            GeneratePerlinNoiseObstacles();
         }    
 
         private void Update()
@@ -79,10 +82,10 @@ namespace Pathfinding
                 CreateGrid();
             }
 
-            if(addManualBlockedNode)
+            if(addObstacleManually)
             {
-                blockedNodes.Add(new int2(blockedNode.x, blockedNode.y));
-                addManualBlockedNode = false;
+                obstacleNodes.Add(new int2(obstacleNode.x, obstacleNode.y));
+                addObstacleManually = false;
                 CreateGrid();
             }
 
@@ -98,82 +101,72 @@ namespace Pathfinding
                 searchManualPath = false;
             }
 
-            if (addRandomBlockedNode)
+            if (addRandomObstacles)
             {
-                addRandomBlockedNode = false;
-                SetRandomBlockedCells();
+                addRandomObstacles = false;
+                SetRandomObstacles();
             }
 
             if(searchRandomPaths)
             {
                 searchRandomPaths = false;
+                var nodes = RequiredExtensions.nodes;
 
-                for (int i = 0; i < numOfRandomPaths; i++)
+                for (int i = 0; i < randomPathsCount; i++)
                 {
-                    CreateSearcher(new int2(Random.Range(0, size.x), Random.Range(0, size.y)), new int2(Random.Range(0, size.x), Random.Range(0, size.y)));
+                    int2 startPosition = new int2(Random.Range(0, size.x), Random.Range(0, size.y));
+                    if (nodes[GetIndex(startPosition)].Obstacle) continue;
+                    
+                    int2 endPosition = new int2(Random.Range(0, size.x), Random.Range(0, size.y));
+                    CreateSearcher(startPosition, endPosition);
                 }
             }
 
             //Instancing.
             if (visualMode == VisualMode.Instancing || visualMode == VisualMode.Both)
             {
-                if (showGrid) VisualizeGrid();
+                if (showGrid) DisplayGrid();
             }
         }
         
         //Display grid info with instancing.
-        private void VisualizeGrid()
+        private void DisplayGrid()
         {
-            //Walkable cells might be replaced with single large quad.
+            //Walkable nodes might be replaced with single large quad.
             for (int i = 0; i < matricesWalkable.Length; i++)
             {
-                Graphics.DrawMeshInstanced(instancedMeshWalkable, 0, instanceCellMaterial, 
+                Graphics.DrawMeshInstanced(walkableMesh, 0, nodeMaterial, 
                     matricesWalkable[i], matricesWalkable[i].Length, null, ShadowCastingMode.Off);
             }
             
-            for (int i = 0; i < matricesBlocked.Length; i++)
+            for (int i = 0; i < matricesObstacles.Length; i++)
             {
-                Graphics.DrawMeshInstanced(instancedMeshBlocked, 0, instanceCellBlockedMaterial, 
-                    matricesBlocked[i], matricesBlocked[i].Length);
+                Graphics.DrawMeshInstanced(obstacleMesh, 0, obstacleMaterial, 
+                    matricesObstacles[i], matricesObstacles[i].Length);
             }
         }
 
-        public void ClearObstaclesMap()
-        {
-            var cells = RequiredExtensions.cells;
-            
-            
-            for (int y = 0; y < size.y; y++)
-            for (int x = 0; x < size.x; x++)
-            {
-                cells[GetIndex(new int2(x, y))] = new Cell { blocked = Convert.ToByte(false), Height = 0 };
-            }
-            
-            InitMatrices();
-            
-        }
-        
         //Update transform data for instances and split it. Must be called every time grid is changed.
-        public void InitMatrices()
+        public void UpdateMatrices()
         {
-            var cells = RequiredExtensions.cells;
-            //Initially it's unknown how much of blocked cells there is, so let's just count them,
+            var nodes = RequiredExtensions.nodes;
+            //Initially it's unknown how much of blocked nodes there is, so let's just count them,
             //so we could render them separately later.
             List<Queue<Matrix4x4>> queueMatricesWalkable = new List<Queue<Matrix4x4>>();
-            List<Queue<Matrix4x4>> queueMatricesBlocked = new List<Queue<Matrix4x4>>();
+            List<Queue<Matrix4x4>> queueMatricesObstacles = new List<Queue<Matrix4x4>>();
 
             int walkableCount = 0;
             int walkableListIndex = 0;
-            int blockedCount = 0;
-            int blockedListIndex = 0;
+            int obstaclesCount = 0;
+            int obstaclesListIndex = 0;
                 
             queueMatricesWalkable.Add(new Queue<Matrix4x4>());
-            queueMatricesBlocked.Add(new Queue<Matrix4x4>());
+            queueMatricesObstacles.Add(new Queue<Matrix4x4>());
             
             Vector3 position   = new Vector3(0, 0, 0);
-            Vector3 scale      = new Vector3(instancedScale, instancedScale, instancedScale);
+            Vector3 scale      = new Vector3(gridScale, gridScale, gridScale);
 
-            float spacing = (instancedSpacing * instancedScale); //Make cell spacing relative to established in inspector scale.
+            float spacing = (gridSpacing * gridScale); //Make node spacing relative to established in inspector scale.
             
             for (int x = 0; x < size.x; x++)
             for (int y = 0; y < size.y; y++)
@@ -182,10 +175,10 @@ namespace Pathfinding
                 position.y = y * spacing;
                 position.z = 0;
 
-                var blocked = cells[GetIndex(new int2(x, y))].Blocked;
+                var obstacle = nodes[GetIndex(new int2(x, y))].Obstacle;
 
-                //Add a matrix to the queue at corresponding list, since cells are use different materials marking it's type.
-                if (!blocked)
+                //Add a matrix to the queue at corresponding list, since nodes are use different materials marking it's type.
+                if (!obstacle)
                 {
                     queueMatricesWalkable[walkableListIndex].Enqueue(Matrix4x4.TRS(position, Quaternion.identity, scale));
                     walkableCount++;
@@ -200,31 +193,31 @@ namespace Pathfinding
                 }
                 else
                 {
-                    queueMatricesBlocked[blockedListIndex].Enqueue(Matrix4x4.TRS(position, Quaternion.identity, scale));
-                    blockedCount++;
+                    queueMatricesObstacles[obstaclesListIndex].Enqueue(Matrix4x4.TRS(position, Quaternion.identity, scale));
+                    obstaclesCount++;
 
-                    if (blockedCount >= instancesLimit)
+                    if (obstaclesCount >= instancesLimit)
                     {
-                        blockedCount = 0;
-                        blockedListIndex++;
-                        queueMatricesBlocked.Add(new Queue<Matrix4x4>());
+                        obstaclesCount = 0;
+                        obstaclesListIndex++;
+                        queueMatricesObstacles.Add(new Queue<Matrix4x4>());
                     }
                 }
             }
             
             //Finally convert everything to the array of arrays.
             walkableListIndex++; 
-            blockedListIndex++;
+            obstaclesListIndex++;
             matricesWalkable = new Matrix4x4[walkableListIndex][];
-            matricesBlocked = new Matrix4x4[blockedListIndex][];
+            matricesObstacles = new Matrix4x4[obstaclesListIndex][];
             
             for (int i = 0; i < walkableListIndex; i++)    matricesWalkable[i] = queueMatricesWalkable[i].ToArray();
-            for (int i = 0; i < blockedListIndex; i++)    matricesBlocked[i] = queueMatricesBlocked[i].ToArray();
+            for (int i = 0; i < obstaclesListIndex; i++)    matricesObstacles[i] = queueMatricesObstacles[i].ToArray();
             
         }
 
         //Display existing paths with provided line renderer.
-        private void VisualizePaths()
+        private void DisplayPaths()
         {
             var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Waypoint>());
             if (query.CalculateEntityCount() > 0)
@@ -232,8 +225,8 @@ namespace Pathfinding
                 var actualGroup = query.ToEntityArray(Unity.Collections.Allocator.TempJob);
                 pathRenderer.Clear();
                 
-                float spacing = (instancedSpacing * instancedScale); //Make cell spacing relative to established in inspector scale.
-                float3 offset = new Vector3(spacing * .5f, spacing * .5f, 0); //Ground path at the center of cells.
+                float spacing = (gridSpacing * gridScale); //Make node spacing relative to established in inspector scale.
+                float3 offset = new Vector3(spacing * .5f, spacing * .5f, 0); //Ground path at the center of nodes.
                 
                 foreach (Entity entity in actualGroup)
                 {
@@ -267,52 +260,80 @@ namespace Pathfinding
         public void UpdatePathsDisplay()
         {
             //TODO hide paths when showPaths changed automatically.
-            if(showPaths) {    VisualizePaths();    }
+            if(showPaths) {    DisplayPaths();    }
             else
             {
                 pathRenderer.Clear();
             }
         }
 
-        public void SetBlockedCell(int2 position)
+        public void SetObstacle(int2 position)
         {
-            var cells = RequiredExtensions.cells;
+            var nodes = RequiredExtensions.nodes;
             
-            cells[GetIndex(position)] = new Cell { blocked = Convert.ToByte(true), Height = 0 };
-            blockedNodes.Clear();
+            nodes[GetIndex(position)] = new Node { obstacle = Convert.ToByte(true), Height = 0 };
+            obstacleNodes.Clear();
             
-            InitMatrices();
+            UpdateMatrices();
             
         }
         
-        public void SetWalkableCell(int2 position)
+        public void SetNodeWalkable(int2 position)
         {
-            var cells = RequiredExtensions.cells;
+            var nodes = RequiredExtensions.nodes;
             
-            cells[GetIndex(position)] = new Cell { blocked = Convert.ToByte(false), Height = 0 };
+            nodes[GetIndex(position)] = new Node { obstacle = Convert.ToByte(false), Height = 0 };
         }
         
-        public void AddBlockedCell(int2 position)
+        public void SetRandomObstacles()
         {
-            blockedNodes.Add(position);
-        }
-        
-        public void SetRandomBlockedCells()
-        {
-            var cells = RequiredExtensions.cells;
+            var nodes = RequiredExtensions.nodes;
 
-            for (int i = 0; i < numbOfRandomBlockedNodes; i++)
+            for (int i = 0; i < randomObstaclesCount; i++)
             {
-                int2 targetCell = new int2(Random.Range(0, size.x), Random.Range(0, size.y));
-                //blockedNodes.Add(targetCell);
-                
-                int randomCell = GetIndex(targetCell);
-                cells[randomCell] = new Cell { blocked = Convert.ToByte(true), Height = 0 };
+                int2 targetNode = new int2(Random.Range(0, size.x), Random.Range(0, size.y));
+
+                int randomNode = GetIndex(targetNode);
+                nodes[randomNode] = new Node { obstacle = Convert.ToByte(true), Height = 0 };
             }
             
-            InitMatrices();
+            UpdateMatrices();
         }
 
+        public void GeneratePerlinNoiseObstacles()
+        {
+            ClearObstaclesMap(updateMatrices: false);
+            float randomization = Random.value * 10000;
+
+            var nodes = RequiredExtensions.nodes;
+            float2 scale = (new float2(1f / size.x, 1f / size.y) * noiseScale); 
+            
+            for (int y = 0; y < size.y; y++)
+            for (int x = 0; x < size.x; x++)
+            {
+                bool obstacle = Mathf.PerlinNoise((scale.x * x) + randomization, (scale.y * y)) <= noiseLevel;
+                nodes[GetIndex(new int2(x, y))] = new Node { obstacle = Convert.ToByte(obstacle), Height = 0 };
+            }
+            
+            UpdateMatrices();
+        }
+        
+        
+        public void ClearObstaclesMap(bool updateMatrices = true)
+        {
+            var nodes = RequiredExtensions.nodes;
+            
+            for (int y = 0; y < size.y; y++)
+            for (int x = 0; x < size.x; x++)
+            {
+                nodes[GetIndex(new int2(x, y))] = new Node { obstacle = Convert.ToByte(false), Height = 0 };
+            }
+            
+            if(updateMatrices) UpdateMatrices();
+            
+        }
+
+        
         public void CreateSearcher(int2 s, int2 e)
         {
             var pathSearcher = entityManager.CreateEntity(typeof(PathRequest), typeof(Translation), typeof(NavigationCapabilities));
@@ -336,14 +357,14 @@ namespace Pathfinding
 
         private void OnDisable()
         {
-            RequiredExtensions.cells.Dispose();
+            RequiredExtensions.nodes.Dispose();
         }
 
         public void CreateGrid()
         {
-            if(RequiredExtensions.cells.IsCreated)
-                RequiredExtensions.cells.Dispose();
-            RequiredExtensions.cells = new Unity.Collections.NativeArray<Cell>(size.x * size.y, Unity.Collections.Allocator.Persistent);
+            if(RequiredExtensions.nodes.IsCreated)
+                RequiredExtensions.nodes.Dispose();
+            RequiredExtensions.nodes = new Unity.Collections.NativeArray<Node>(size.x * size.y, Unity.Collections.Allocator.Persistent);
 
             previousSize = size.x * size.y;
 
@@ -351,16 +372,16 @@ namespace Pathfinding
             {
                 for (int x = 0; x < size.x; x++)
                 {
-                    Cell cell = new Cell
+                    Node node = new Node
                     {
-                        blocked = Convert.ToByte(blockedNodes.Contains(new int2(x, y)))
+                        obstacle = Convert.ToByte(obstacleNodes.Contains(new int2(x, y)))
                     };
-                    RequiredExtensions.cells[GetIndex(new int2(x, y))] = cell;
+                    RequiredExtensions.nodes[GetIndex(new int2(x, y))] = node;
                 }
             }
             World.Active.GetExistingSystem<PathfindingSystem>().worldSize = size;
             
-            InitMatrices(); 
+            UpdateMatrices(); 
         }
 
         void OnDrawGizmos()
@@ -371,13 +392,13 @@ namespace Pathfinding
             {
                 if (showGrid && size.x * size.y == previousSize)
                 {
-                    var cells = RequiredExtensions.cells;
+                    var nodes = RequiredExtensions.nodes;
 
                     for (int x = 0; x < size.x; x++)
                     {
                         for (int y = 0; y < size.y; y++)
                         {
-                            Gizmos.color = cells[GetIndex(new int2(x, y))].Blocked ? Color.grey : Color.white;
+                            Gizmos.color = nodes[GetIndex(new int2(x, y))].Obstacle ? Color.grey : Color.white;
                             Gizmos.DrawCube(NodeToWorldPosition(new int2(x, y)), new Vector3(.90f, .90f));
                         }
                     }
@@ -423,7 +444,6 @@ namespace Pathfinding
 }
 
 //Making better testing workflow.
-//TODO Perlin noise for obstacles map generation.
 //TODO Tools panel with some options, like "Clear all"? Saving&Loading obstacles&path scenarios to file?
 
 //Research

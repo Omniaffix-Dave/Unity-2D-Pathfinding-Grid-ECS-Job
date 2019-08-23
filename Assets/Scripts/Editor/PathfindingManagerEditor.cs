@@ -9,21 +9,23 @@ namespace Pathfinding
     {
         PathfindingManager PathfindingManager => (PathfindingManager)target;
 
-        SerializedProperty numberOfRandomPaths => serializedObject.FindProperty("numOfRandomPaths");
+        SerializedProperty numberOfRandomPaths => serializedObject.FindProperty("randomPathsCount");
         SerializedProperty startManualPath => serializedObject.FindProperty("start");
         SerializedProperty endManualPath => serializedObject.FindProperty("end");
 
-        SerializedProperty numberOfBlocksToAdd => serializedObject.FindProperty("numbOfRandomBlockedNodes");
-        SerializedProperty manualBlockNode => serializedObject.FindProperty("blockedNode");
+        SerializedProperty numberOfBlocksToAdd => serializedObject.FindProperty("randomObstaclesCount");
+        SerializedProperty manualBlockNode => serializedObject.FindProperty("obstacleNode");
 
         SerializedProperty size;
 
-        SerializedProperty cellMaterial => serializedObject.FindProperty("instanceCellMaterial");
-        SerializedProperty cellBlockedMaterial => serializedObject.FindProperty("instanceCellBlockedMaterial");
-        SerializedProperty instancedMeshWalkable => serializedObject.FindProperty("instancedMeshWalkable");
-        SerializedProperty instancedMeshBlocked => serializedObject.FindProperty("instancedMeshBlocked");
-        SerializedProperty instancedSpacing => serializedObject.FindProperty("instancedSpacing");
-        SerializedProperty instancedScale => serializedObject.FindProperty("instancedScale");
+        SerializedProperty cellMaterial => serializedObject.FindProperty("nodeMaterial");
+        SerializedProperty cellBlockedMaterial => serializedObject.FindProperty("obstacleMaterial");
+        SerializedProperty instancedMeshWalkable => serializedObject.FindProperty("walkableMesh");
+        SerializedProperty instancedMeshBlocked => serializedObject.FindProperty("obstacleMesh");
+        SerializedProperty instancedSpacing => serializedObject.FindProperty("gridSpacing");
+        SerializedProperty instancedScale => serializedObject.FindProperty("gridScale");
+        SerializedProperty noiseLevel => serializedObject.FindProperty("noiseLevel");
+        SerializedProperty noiseScale => serializedObject.FindProperty("noiseScale");
 
         bool showBlocked;
         bool showPaths;
@@ -51,15 +53,16 @@ namespace Pathfinding
 
         void ShowPaths()
         {
-            EditorGUILayout.PropertyField(numberOfRandomPaths, new GUIContent("Number To Generate"));
+            EditorGUILayout.PropertyField(numberOfRandomPaths, new GUIContent("Random Paths Count"));
             if (GUILayout.Button("Add Random Paths"))
             {
                 PathfindingManager.searchRandomPaths = true;
             }
+            EditorGUILayout.Space();
 
             EditorGUILayout.PropertyField(startManualPath, new GUIContent("Start Node"));
             EditorGUILayout.PropertyField(endManualPath, new GUIContent("End Node"));
-            if (GUILayout.Button("Add Manual Path"))
+            if (GUILayout.Button("Add Path Manually"))
                 PathfindingManager.searchManualPath = true;
 
             serializedObject.ApplyModifiedProperties();
@@ -72,14 +75,23 @@ namespace Pathfinding
             if (GUILayout.Button("Clear Obstacles Map"))
                 PathfindingManager.ClearObstaclesMap();
             if (GUILayout.Button("Add Random Blocked Nodes"))
-                PathfindingManager.addRandomBlockedNode = true;
+                PathfindingManager.addRandomObstacles = true;
             
             EditorGUILayout.PropertyField(manualBlockNode);
 
             EditorGUILayout.Space();
             if (GUILayout.Button("Add Manual Blocked Node"))
-                PathfindingManager.addManualBlockedNode = true;
-
+                PathfindingManager.addObstacleManually = true;
+            
+            EditorGUILayout.Space();
+            EditorGUILayout.PropertyField(noiseLevel, new GUIContent("Noise Level"));
+            EditorGUILayout.PropertyField(noiseScale, new GUIContent("Noise Scale"));
+            
+            EditorGUILayout.Space();
+            if (GUILayout.Button("Generate With Perlin Noise"))
+                PathfindingManager.GeneratePerlinNoiseObstacles();
+            
+            
             serializedObject.ApplyModifiedProperties();
         }
 
@@ -94,7 +106,7 @@ namespace Pathfinding
 
             if (GUILayout.Button("Apply Scale and Spacing"))
             {
-                PathfindingManager.InitMatrices();
+                PathfindingManager.UpdateMatrices();
                 PathfindingManager.UpdatePathsDisplay();
             }
             

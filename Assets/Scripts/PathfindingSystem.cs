@@ -64,7 +64,7 @@ namespace Pathfinding
             {
                 WaypointChunkBuffer = GetArchetypeChunkBufferType<Waypoint>(false),
                 PathRequestsChunkComponent = GetArchetypeChunkComponentType<PathRequest>(true),
-                CellArray = RequiredExtensions.cells,
+                CellArray = RequiredExtensions.nodes,
                 TranslationsChunkComponent = GetArchetypeChunkComponentType<Translation>(true),
                 NavigationCapabilitiesChunkComponent = GetArchetypeChunkComponentType<NavigationCapabilities>(true),
                 Neighbors = neighbours,
@@ -85,7 +85,7 @@ namespace Pathfinding
             [ReadOnly] public int DimY;
             [ReadOnly] public int Iterations;
             [ReadOnly] public int NeighborCount;
-            [ReadOnly] public NativeArray<Cell> CellArray;
+            [ReadOnly] public NativeArray<Node> CellArray;
             [WriteOnly] public ArchetypeChunkBufferType<Waypoint> WaypointChunkBuffer;
             [ReadOnly] public ArchetypeChunkComponentType<PathRequest> PathRequestsChunkComponent;
             [ReadOnly] public NativeArray<Neighbour> Neighbors;
@@ -127,8 +127,8 @@ namespace Pathfinding
                     {
                         // We just set the destination as the goal, but need to get the correct height
                         int gridIndex = this.GetIndex(goal);
-                        Cell cell = CellArray[gridIndex];
-                        float3 point = new float3(request.Destination.x, request.Destination.y, cell.Height);
+                        Node node = CellArray[gridIndex];
+                        float3 point = new float3(request.Destination.x, request.Destination.y, node.Height);
                         waypoints.Add(point);
                         continue;
                     }
@@ -278,7 +278,7 @@ namespace Pathfinding
                 stash.Request.fufilled = true;
             }
 
-            bool IsWalkable(NativeArray<Cell> buffer, float2 from, float2 to)
+            bool IsWalkable(NativeArray<Node> buffer, float2 from, float2 to)
             {
                 const float step = 0.25f;
 
@@ -294,7 +294,7 @@ namespace Pathfinding
 
                     var index = this.GetIndex(point.FloorToInt());
                     var cell = buffer[index];
-                    if (cell.Blocked)
+                    if (cell.Obstacle)
                         return false;
 
                     if (cell.Height != currentCell.Height)
@@ -303,10 +303,10 @@ namespace Pathfinding
                 return true;
             }
 
-            float GetCellCost(NativeArray<Cell> grid, NavigationCapabilities capabilities, int fromIndex, int toIndex, Neighbour neighbour, bool areNeighbours)
+            float GetCellCost(NativeArray<Node> grid, NavigationCapabilities capabilities, int fromIndex, int toIndex, Neighbour neighbour, bool areNeighbours)
             {
                 var target = grid[toIndex];
-                if (target.Blocked)
+                if (target.Obstacle)
                     return float.PositiveInfinity;
 
                 // If we're not neighbours, then we're a portal and can just go straight there
@@ -337,7 +337,7 @@ namespace Pathfinding
                 return 1;
             }
 
-            float3 GetPosition(NativeArray<Cell> grid, int2 point)
+            float3 GetPosition(NativeArray<Node> grid, int2 point)
             {
                 var index = this.GetIndex(point);
                 var cell = grid[index];
@@ -363,7 +363,7 @@ namespace Pathfinding
                 public int2 Start;
                 public int2 Goal;
 
-                public NativeArray<Cell> Grid;
+                public NativeArray<Node> Grid;
 
                 public NativeSlice<float> CostSoFar;
                 public NativeSlice<int2> CameFrom;
