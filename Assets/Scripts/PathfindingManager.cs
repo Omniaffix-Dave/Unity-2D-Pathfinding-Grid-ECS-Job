@@ -4,6 +4,7 @@ using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
+using UnityEngine.Rendering;
 using UnityEngine.Serialization;
 using Random = UnityEngine.Random;
 
@@ -127,7 +128,7 @@ namespace Pathfinding
             for (int i = 0; i < matricesWalkable.Length; i++)
             {
                 Graphics.DrawMeshInstanced(instancedMeshWalkable, 0, instanceCellMaterial, 
-                    matricesWalkable[i], matricesWalkable[i].Length);
+                    matricesWalkable[i], matricesWalkable[i].Length, null, ShadowCastingMode.Off);
             }
             
             for (int i = 0; i < matricesBlocked.Length; i++)
@@ -135,6 +136,21 @@ namespace Pathfinding
                 Graphics.DrawMeshInstanced(instancedMeshBlocked, 0, instanceCellBlockedMaterial, 
                     matricesBlocked[i], matricesBlocked[i].Length);
             }
+        }
+
+        public void ClearObstaclesMap()
+        {
+            var cells = RequiredExtensions.cells;
+            
+            
+            for (int y = 0; y < size.y; y++)
+            for (int x = 0; x < size.x; x++)
+            {
+                cells[GetIndex(new int2(x, y))] = new Cell { blocked = Convert.ToByte(false), Height = 0 };
+            }
+            
+            InitMatrices();
+            
         }
         
         //Update transform data for instances and split it. Must be called every time grid is changed.
@@ -263,6 +279,10 @@ namespace Pathfinding
             var cells = RequiredExtensions.cells;
             
             cells[GetIndex(position)] = new Cell { blocked = Convert.ToByte(true), Height = 0 };
+            blockedNodes.Clear();
+            
+            InitMatrices();
+            
         }
         
         public void SetWalkableCell(int2 position)

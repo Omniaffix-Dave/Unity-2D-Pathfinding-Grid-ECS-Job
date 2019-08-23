@@ -68,11 +68,15 @@ namespace Pathfinding
         void ShowBlockedNodes()
         {
             EditorGUILayout.PropertyField(numberOfBlocksToAdd, new GUIContent("Number To Generate"));
+            EditorGUILayout.Space();
+            if (GUILayout.Button("Clear Obstacles Map"))
+                PathfindingManager.ClearObstaclesMap();
             if (GUILayout.Button("Add Random Blocked Nodes"))
                 PathfindingManager.addRandomBlockedNode = true;
             
             EditorGUILayout.PropertyField(manualBlockNode);
 
+            EditorGUILayout.Space();
             if (GUILayout.Button("Add Manual Blocked Node"))
                 PathfindingManager.addManualBlockedNode = true;
 

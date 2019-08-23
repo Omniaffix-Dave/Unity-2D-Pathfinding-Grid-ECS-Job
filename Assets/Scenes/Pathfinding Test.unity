@@ -684,6 +684,8 @@ MonoBehaviour:
 
     F5 - update grid&path display.
 
+    Delete - clear obstacles map.
+
 
     WASD - controll.
 
