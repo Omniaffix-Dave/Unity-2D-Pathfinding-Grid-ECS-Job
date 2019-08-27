@@ -60,6 +60,9 @@ namespace Pathfinding
         private PathRenderer pathRenderer;
         private List<Vector3> obstaclesToAdd = new List<Vector3>();
         private EntityManager entityManager;
+        private PathfindingSystem pathfindingSystem;
+
+        private bool pathfindingNow = false;
         
         int previousSize; // Prevent GUI Errors
         public enum VisualMode { Gizmo, Instancing, Both };
@@ -68,8 +71,10 @@ namespace Pathfinding
 
         private void Awake()
         {
-            World.Active.GetExistingSystem<PathfindingSystem>().canMoveDiag = canMoveDiag;
+            pathfindingSystem = World.Active.GetExistingSystem<PathfindingSystem>(); 
+            pathfindingSystem.canMoveDiag = canMoveDiag;
             entityManager = World.Active.EntityManager;
+            
             CreateGrid();
             
             pathRenderer = GetComponent<PathRenderer>();
@@ -79,6 +84,16 @@ namespace Pathfinding
 
         private void Update()
         {
+            if (pathfindingSystem.numberOfRequests > 0)
+            {
+                pathfindingNow = true;
+            }
+            else if (pathfindingNow)
+            {
+                pathfindingNow = false;
+                UpdatePathsDisplay();
+            }
+            
             if(size.x * size.y != previousSize)
             {
                 CreateGrid();
@@ -335,6 +350,13 @@ namespace Pathfinding
             
         }
 
+        public void ClearPathfinders()
+        {
+            var query = entityManager.CreateEntityQuery(ComponentType.ReadOnly<Waypoint>());
+            entityManager.DestroyEntity(query);
+            
+            pathRenderer.Clear();
+        }
         
         public void CreateSearcher(int2 s, int2 e)
         {

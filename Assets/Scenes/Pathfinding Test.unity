@@ -682,7 +682,9 @@ MonoBehaviour:
     Enter - find selected path.
 
 
-    Delete - clear obstacles map.
+    Delete - clear pathfinding.
+
+    Delete+shift - clear pathfinding and obstacles map.
 
 
     F2 - generate obstacles map with perlin noise.

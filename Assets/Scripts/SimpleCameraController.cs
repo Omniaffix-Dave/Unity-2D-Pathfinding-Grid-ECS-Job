@@ -171,10 +171,18 @@ namespace UnityTemplateProjects
                     pathfindingManager.UpdatePathsDisplay();
                     pathfindingManager.UpdateMatrices();
                 }
-
+                
                 if (Input.GetKeyDown(KeyCode.Delete))
                 {
-                    pathfindingManager.ClearObstaclesMap();
+                    if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
+                    {
+                        pathfindingManager.ClearObstaclesMap();
+                        pathfindingManager.ClearPathfinders();
+                    }
+                    else
+                    {
+                        pathfindingManager.ClearPathfinders();
+                    }
                 }
 
                 if (Input.GetKeyDown(KeyCode.F2))

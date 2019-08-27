@@ -17,6 +17,7 @@ namespace Pathfinding
         public int2 worldSize;
 
         public bool canMoveDiag;
+        public int numberOfRequests = 0;
 
         protected override void OnCreate()
         {
@@ -56,7 +57,7 @@ namespace Pathfinding
 
         protected override JobHandle OnUpdate(JobHandle inputDeps)
         {
-            int numberOfRequests = pathRequests.CalculateChunkCount();
+            numberOfRequests = pathRequests.CalculateChunkCount();
             if (numberOfRequests == 0) return inputDeps;
 
             //Schedule the findPath to build <Waypoints> Job
