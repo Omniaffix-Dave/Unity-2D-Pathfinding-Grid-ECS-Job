@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 using Unity.Entities;
 using Unity.Mathematics;
 using Unity.Transforms;
@@ -13,6 +15,7 @@ namespace Pathfinding
     [RequireComponent(typeof(PathRenderer))]
     public class PathfindingManager : MonoBehaviour
     {
+        public int iterationLimit = 1000;
         //Options
         public int2 size;
         public VisualMode visualMode;
@@ -84,6 +87,8 @@ namespace Pathfinding
 
         private void Update()
         {
+            pathfindingSystem.IterationLimit = iterationLimit;
+            
             if (pathfindingSystem.numberOfRequests > 0)
             {
                 pathfindingNow = true;
@@ -319,6 +324,7 @@ namespace Pathfinding
 
         public void GeneratePerlinNoiseObstacles()
         {
+            ClearPathfinders();
             ClearObstaclesMap(updateMatrices: false);
             float randomization = Random.value * 10000;
 
@@ -455,6 +461,91 @@ namespace Pathfinding
             }                        
         }
 
+        public void SaveToFile()
+        {
+            string path = Application.dataPath + "/PathfindingSave";
+            var nodes = RequiredExtensions.nodes;
+            
+            BinaryFormatter serializer = new BinaryFormatter();
+            var fileStream = File.Create(Application.dataPath + "/PathfindingSave");
+
+            int count = nodes.Length;
+            SaveData saveData = new SaveData()
+            {
+                iterationLimit = iterationLimit,
+                start = new SerializableInt2(start.x, start.y),
+                end = new SerializableInt2(end.x, end.y),
+                size = new SerializableInt2(size.x, size.y),
+                nodes = new byte[count]
+            };
+
+            for (int i = 0; i < count; i++) saveData.nodes[i] = nodes[i].obstacle;
+            Debug.Log(saveData.nodes[0]);
+            
+            serializer.Serialize(fileStream, saveData);
+            fileStream.Close();
+            
+            Debug.Log("Saved to " + path);
+        }
+
+        public void LoadFromFile()
+        {
+            string path = Application.dataPath + "/PathfindingSave";
+            if (File.Exists(path))
+            {
+                
+                BinaryFormatter serializer = new BinaryFormatter();
+                var fileStream = File.Open(path, FileMode.Open);
+
+                SaveData saveData = (SaveData) serializer.Deserialize(fileStream);
+                fileStream.Close();
+
+                iterationLimit = saveData.iterationLimit;
+                
+                start = new Vector2Int(saveData.start.x, saveData.start.y);
+                end = new Vector2Int(saveData.end.x, saveData.end.y);
+                size = new int2(saveData.size.x, saveData.size.y);
+
+                CreateGrid();
+                var nodes = RequiredExtensions.nodes;
+                int count = saveData.nodes.Length;
+                
+                for (int i = 0; i < count; i++)
+                {
+                    nodes[i] = new Node { Height =  0, obstacle = saveData.nodes[i] };
+                }
+                
+                ClearPathfinders();
+                UpdateMatrices();
+                
+                Debug.Log("Loaded.");
+            }
+        }
+
+        [Serializable]
+        private struct SaveData
+        {
+            public int iterationLimit;
+            public SerializableInt2 start;
+            public SerializableInt2 end;
+
+            public SerializableInt2 size;
+            public byte[] nodes;
+        }
+
+        [Serializable]
+        struct SerializableInt2
+        {
+            public int x;
+            public int y;
+
+            public SerializableInt2(int x, int y)
+            {
+                this.x = x;
+                this.y = y;
+            }
+        }
+        
         public float3 NodeToWorldPosition(int2 i) => new float3(i.x, i.y, 0);
 
         int GetIndex(int2 i)
@@ -468,7 +559,6 @@ namespace Pathfinding
 }
 
 //Making better testing workflow.
-//TODO Tools panel with some options, like "Clear all"? Saving&Loading obstacles&path scenarios to file?
 
 //Research
 //TODO Check deadlock at high obstacles density and with negative values in path positions.

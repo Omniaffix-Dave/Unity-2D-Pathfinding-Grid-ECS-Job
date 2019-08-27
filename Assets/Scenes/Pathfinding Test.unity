@@ -509,6 +509,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c17199525bd4ea1418796ce41745946d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  iterationLimit: 1000
   size:
     x: 100
     y: 100
@@ -689,7 +690,9 @@ MonoBehaviour:
 
     F2 - generate obstacles map with perlin noise.
 
-    F5 - update grid&path display.
+    F5 - save.
+
+    F9 - load.
 
 
     WASD - controll.

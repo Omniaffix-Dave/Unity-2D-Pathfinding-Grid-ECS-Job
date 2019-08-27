@@ -13,7 +13,7 @@ namespace Pathfinding
         NativeArray<Neighbour> neighbours;
         EntityQuery pathRequests;
 
-        const int IterationLimit = 1000;
+        public int IterationLimit = 1000;
         public int2 worldSize;
 
         public bool canMoveDiag;

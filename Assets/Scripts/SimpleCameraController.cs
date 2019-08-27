@@ -166,11 +166,11 @@ namespace UnityTemplateProjects
                     pathfindingManager.searchManualPath = true;
                 }
 
-                if (Input.GetKeyDown(KeyCode.F5)) //F5 to update
+                /*if (Input.GetKeyDown(KeyCode.F5)) //F5 to update
                 {
                     pathfindingManager.UpdatePathsDisplay();
                     pathfindingManager.UpdateMatrices();
-                }
+                }*/
                 
                 if (Input.GetKeyDown(KeyCode.Delete))
                 {
@@ -188,6 +188,15 @@ namespace UnityTemplateProjects
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
                     pathfindingManager.GeneratePerlinNoiseObstacles();
+                }
+                
+                if (Input.GetKeyDown(KeyCode.F5))
+                {
+                    pathfindingManager.SaveToFile();
+                }
+                else if (Input.GetKeyDown(KeyCode.F9))
+                {
+                    pathfindingManager.LoadFromFile();
                 }
             }
         }
