@@ -7,26 +7,26 @@ namespace UnityTemplateProjects
 {
     public class SimpleCameraController : MonoBehaviour
     {
-        public float speed = 3.5f;
-        public float speedUp = 3f;
+        public float speed   = 50f;
+        public float ShiftAcceleration = 4f;
 
-        public Vector2 zoomMinMax = new Vector2(10, 70);
+        public Vector2  zoomMinMax = new Vector2(5, 100);
         public Material cursorMaterial, startPointMaterial, endPointMaterial;
 
         public TextFade help;
-        
-        static Plane XYPlane = new Plane(Vector3.forward, Vector3.zero);
-        private Camera main;
+
+        static  Plane     XZPlane = new Plane(Vector3.forward, Vector3.zero);
+        private Camera    main;
         private Transform tf;
 
         private Vector3 lastMousePosition = Vector3.negativeInfinity;
 
         private PathfindingManager pathfindingManager;
-        
-        
+
+
         void OnEnable()
         {
-            tf = GetComponent<Transform>();
+            tf   = GetComponent<Transform>();
             main = GetComponent<Camera>();
 
             pathfindingManager = FindObjectOfType<PathfindingManager>();
@@ -78,9 +78,9 @@ namespace UnityTemplateProjects
             if (Input.GetKey(KeyCode.Escape))
             {
                 Application.Quit();
-				#if UNITY_EDITOR
-				UnityEditor.EditorApplication.isPlaying = false; 
-				#endif
+                #if UNITY_EDITOR
+                UnityEditor.EditorApplication.isPlaying = false;
+                #endif
             }
             
             // Translation
@@ -89,7 +89,7 @@ namespace UnityTemplateProjects
             // Speed up movement when shift key held
             if (Input.GetKey(KeyCode.LeftShift))
             {
-                translation *= speedUp;
+                translation *= ShiftAcceleration;
             }
 
             var temp = tf.position;
@@ -112,21 +112,21 @@ namespace UnityTemplateProjects
                 Matrix4x4 trs = Matrix4x4.TRS(mousePosition, Quaternion.identity, new Vector3(spacing, spacing, spacing));
                 
                 Graphics.DrawMesh(pathfindingManager.obstacleMesh, trs, cursorMaterial, 0);
-                
+
                 trs.m03 = pathfindingManager.start.x * spacing;
                 trs.m13 = pathfindingManager.start.y * spacing;
                 Graphics.DrawMesh(pathfindingManager.obstacleMesh, trs, startPointMaterial, 0);
-                
+
                 trs.m03 = pathfindingManager.end.x * spacing;
                 trs.m13 = pathfindingManager.end.y * spacing;
                 Graphics.DrawMesh(pathfindingManager.obstacleMesh, trs, endPointMaterial, 0);
-                
-                
-                if(Input.GetMouseButton(0)) //LMB draw
+
+
+                if (Input.GetMouseButton(0)) //LMB draw
                 {
-                    if(mousePosition == lastMousePosition) return;
+                    if (mousePosition == lastMousePosition) return;
                     lastMousePosition = mousePosition;
-                    
+
                     mousePosition /= spacing;
                     pathfindingManager.SetObstacle(new int2((int) mousePosition.x, (int) mousePosition.y));
                     pathfindingManager.UpdateMatrices();
@@ -134,18 +134,19 @@ namespace UnityTemplateProjects
 
                 if (Input.GetMouseButton(1)) //RMB erase
                 {
-                    if(mousePosition == lastMousePosition) return;
+                    if (mousePosition == lastMousePosition) return;
                     lastMousePosition = mousePosition;
-                    
+
                     mousePosition /= spacing;
                     pathfindingManager.SetNodeWalkable(new int2((int) mousePosition.x, (int) mousePosition.y));
                     pathfindingManager.UpdateMatrices();
                 }
 
+                //Set start&end nodes for custom path. 
                 if (Input.GetMouseButtonDown(2))
                 {
                     lastMousePosition = mousePosition;
-                    
+
                     mousePosition /= spacing;
                     pathfindingManager.SetNodeWalkable(new int2((int) mousePosition.x, (int) mousePosition.y));
 
@@ -157,21 +158,17 @@ namespace UnityTemplateProjects
                     {
                         pathfindingManager.end = new Vector2Int((int) mousePosition.x, (int) mousePosition.y);
                     }
-                    
+
                     pathfindingManager.UpdateMatrices();
                 }
 
+                //Use start&end node to create custom path.
                 if (Input.GetKeyDown(KeyCode.KeypadEnter) || Input.GetKeyDown(KeyCode.Return))
                 {
-                    pathfindingManager.searchManualPath = true;
+                    pathfindingManager.AddPathManually();
                 }
-
-                /*if (Input.GetKeyDown(KeyCode.F5)) //F5 to update
-                {
-                    pathfindingManager.UpdatePathsDisplay();
-                    pathfindingManager.UpdateMatrices();
-                }*/
                 
+                //Clear pathfinding and obstacles map.
                 if (Input.GetKeyDown(KeyCode.Delete))
                 {
                     if (Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift))
@@ -185,15 +182,17 @@ namespace UnityTemplateProjects
                     }
                 }
 
+                //Generate obstacles with perlin noise. 
                 if (Input.GetKeyDown(KeyCode.F2))
                 {
-                    pathfindingManager.GeneratePerlinNoiseObstacles();
+                    pathfindingManager.GenerateObstaclesWithPerlinNoise();
                 }
-                
+
+                //Save
                 if (Input.GetKeyDown(KeyCode.F5))
                 {
                     pathfindingManager.SaveToFile();
-                }
+                } //Load
                 else if (Input.GetKeyDown(KeyCode.F9))
                 {
                     pathfindingManager.LoadFromFile();
@@ -206,7 +205,7 @@ namespace UnityTemplateProjects
             float distance;
             var ray = main.ScreenPointToRay(Input.mousePosition);
             
-            if(XYPlane.Raycast (ray, out distance)) 
+            if(XZPlane.Raycast (ray, out distance)) 
             {
                 Vector3 hitPoint = ray.GetPoint(distance);
 

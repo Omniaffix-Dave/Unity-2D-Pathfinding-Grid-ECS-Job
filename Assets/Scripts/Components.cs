@@ -10,8 +10,8 @@ namespace Pathfinding
     {
         public Entity Entity;
 
-        public int2 start;
-        public int2 end;
+        public int2   start;
+        public int2   end;
         public float3 Destination;
         public bool NavigateToNearestIfBlocked;
         public bool NavigateToBestIfIncomplete;

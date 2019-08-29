@@ -7,15 +7,15 @@ namespace UnityTemplateProjects
     public class TextFade : UnityEngine.MonoBehaviour
     {
         public float speed = 0.25f;
-        public float wait = 3f;
+        public float wait  = 3f;
         [Space(10)]
-        public bool fadeIn = false;
+        public bool fadeIn  = false;
         public bool fadeOut = false;
         [Space(5)]
         public bool destroyAfterwards = false;
-        
+
         private Color initialColor;
-        private Text text;
+        private Text  text;
 
         private CurrentStage currentStage;
         private enum CurrentStage

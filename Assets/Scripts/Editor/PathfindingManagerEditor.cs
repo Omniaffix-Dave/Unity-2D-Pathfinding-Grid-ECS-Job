@@ -26,80 +26,113 @@ namespace Pathfinding
         SerializedProperty instancedScale => serializedObject.FindProperty("gridScale");
         SerializedProperty noiseLevel => serializedObject.FindProperty("noiseLevel");
         SerializedProperty noiseScale => serializedObject.FindProperty("noiseScale");
+        SerializedProperty gizmoPathColor => serializedObject.FindProperty("gizmoPathColor");
+        
+        SerializedProperty visualMode => serializedObject.FindProperty("visualMode");
 
         bool showBlocked;
-        bool showPaths;
+        bool showPathTesting;
         bool showInstancing;
+        bool showGizmo;
+
+        private GUIStyle title;
+        private GUIStyle foldout;
+        private void OnEnable()
+        {
+            title = new GUIStyle(GUIStyle.none);
+            title.fontStyle = FontStyle.Bold;
+        }
 
         public override void OnInspectorGUI()
         {
             base.OnInspectorGUI();
-
-            showPaths = EditorGUILayout.Foldout(showPaths, "Paths");
-
-            if (showPaths)
-                ShowPaths();
-
-            showBlocked = EditorGUILayout.Foldout(showBlocked, "Blocked Nodes");
-
+            EditorGUILayout.Space();
+            
+            showBlocked = EditorGUILayout.Foldout(showBlocked, "Obstacles");
+            
             if (showBlocked)
                 ShowBlockedNodes();
+            
+            showPathTesting = EditorGUILayout.Foldout(showPathTesting, "Path Testing");
 
-            showInstancing = EditorGUILayout.Foldout(showInstancing, "Instancing");
+            if (showPathTesting)
+                ShowPathTesting();
 
-            if (showInstancing)
-                ShowInstancing();
-        }
-
-        void ShowPaths()
-        {
-            EditorGUILayout.PropertyField(numberOfRandomPaths, new GUIContent("Random Paths Count"));
-            if (GUILayout.Button("Add Random Paths"))
-            {
-                PathfindingManager.searchRandomPaths = true;
-            }
             EditorGUILayout.Space();
-
-            EditorGUILayout.PropertyField(startManualPath, new GUIContent("Start Node"));
-            EditorGUILayout.PropertyField(endManualPath, new GUIContent("End Node"));
-            if (GUILayout.Button("Add Path Manually"))
-                PathfindingManager.searchManualPath = true;
-
-            serializedObject.ApplyModifiedProperties();
+            
+            int mode = visualMode.intValue;
+            
+            if (mode != 1)
+            {
+                showGizmo = EditorGUILayout.Foldout(showGizmo, "Display (Gizmo)");
+                if (showGizmo)
+                    ShowGizmoSettings();
+            }
+            
+            if (mode != 0)
+            {
+                showInstancing = EditorGUILayout.Foldout(showInstancing, "Display (Instancing)");
+                if (showInstancing)
+                    ShowInstancingSettings();
+            }
+            
         }
 
+        
         void ShowBlockedNodes()
         {
-            EditorGUILayout.PropertyField(numberOfBlocksToAdd, new GUIContent("Number To Generate"));
+            EditorGUILayout.LabelField("Additional Obstacles", title);
+            EditorGUILayout.PropertyField(numberOfBlocksToAdd, new GUIContent("Count"));
+            if (GUILayout.Button($"Add Random Obstacles ({numberOfBlocksToAdd.intValue})")) PathfindingManager.SetRandomObstacles();
             EditorGUILayout.Space();
-            if (GUILayout.Button("Clear Obstacles Map"))
-                PathfindingManager.ClearObstaclesMap();
-            if (GUILayout.Button("Add Random Blocked Nodes"))
-                PathfindingManager.addRandomObstacles = true;
             
-            EditorGUILayout.PropertyField(manualBlockNode);
-
-            EditorGUILayout.Space();
-            if (GUILayout.Button("Add Manual Blocked Node"))
-                PathfindingManager.addObstacleManually = true;
+            EditorGUILayout.LabelField("Single Obstacle At Position", title);
+            EditorGUILayout.PropertyField(manualBlockNode, new GUIContent("Position"));
+            if (GUILayout.Button("Add Obstacle"))
+                PathfindingManager.AddObstacleManually();
             
             EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Perlin Noise", title);
             EditorGUILayout.PropertyField(noiseLevel, new GUIContent("Noise Level"));
             EditorGUILayout.PropertyField(noiseScale, new GUIContent("Noise Scale"));
-            
-            EditorGUILayout.Space();
-            if (GUILayout.Button("Generate With Perlin Noise"))
-                PathfindingManager.GeneratePerlinNoiseObstacles();
-            
+            if (GUILayout.Button("Generate"))  PathfindingManager.GenerateObstaclesWithPerlinNoise();
+            if (GUILayout.Button("Clear Obstacles Map"))         PathfindingManager.ClearObstaclesMap();
             
             serializedObject.ApplyModifiedProperties();
         }
 
-        void ShowInstancing()
+        void ShowPathTesting()
         {
+            EditorGUILayout.LabelField("Random Paths", title);
+            EditorGUILayout.PropertyField(numberOfRandomPaths, new GUIContent("Count"));
+            if (GUILayout.Button($"Add Additional Paths ({numberOfRandomPaths.intValue})")) PathfindingManager.AddRandomPaths();
+            EditorGUILayout.Space();
+
+            EditorGUILayout.LabelField("Custom Path", title);
+            EditorGUILayout.PropertyField(startManualPath, new GUIContent("Start Node"));
+            EditorGUILayout.PropertyField(endManualPath,   new GUIContent("End Node"));
+            if (GUILayout.Button("Add Path Manually")) PathfindingManager.AddPathManually();
+
+            serializedObject.ApplyModifiedProperties();
+        }
+        
+        void ShowInstancingSettings()
+        {
+            EditorGUILayout.LabelField("Materials", title);
+            
+            EditorGUILayout.PropertyField(cellMaterial, new GUIContent("Walkable Cells"));
+            EditorGUILayout.PropertyField(cellBlockedMaterial, new GUIContent("Blocked Cells"));
+
+            EditorGUILayout.Space();
+            
+            EditorGUILayout.LabelField("Geometry", title);
+            
             EditorGUILayout.PropertyField(instancedMeshWalkable, new GUIContent("Cell Mesh"));
             EditorGUILayout.PropertyField(instancedMeshBlocked, new GUIContent("Obstacle Mesh"));
             EditorGUILayout.Space();
+            
+            EditorGUILayout.LabelField("Position", title);
+            
             EditorGUILayout.PropertyField(instancedScale, new GUIContent("Scale"));
             EditorGUILayout.PropertyField(instancedSpacing, new GUIContent("Spacing"));
             EditorGUILayout.Space();
@@ -113,14 +146,12 @@ namespace Pathfinding
             if (GUILayout.Button("Update Paths Display"))
                 PathfindingManager.UpdatePathsDisplay();
             
-            EditorGUILayout.Space();
-            
-            EditorGUILayout.LabelField("Materials");
-            EditorGUILayout.Space();
+            serializedObject.ApplyModifiedProperties();
+        }
 
-            EditorGUILayout.PropertyField(cellMaterial, new GUIContent("Walkable Cells"));
-            EditorGUILayout.PropertyField(cellBlockedMaterial, new GUIContent("Blocked Cells"));
-
+        void ShowGizmoSettings()
+        {
+            EditorGUILayout.PropertyField(gizmoPathColor, new GUIContent("Gizmo Path Color"));
             serializedObject.ApplyModifiedProperties();
         }
     }

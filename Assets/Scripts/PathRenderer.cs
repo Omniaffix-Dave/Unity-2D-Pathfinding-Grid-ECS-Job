@@ -6,7 +6,7 @@ namespace Pathfinding
     //Basically just a pool of LineRenderers.
     public class PathRenderer : MonoBehaviour
     {
-        public int poolSize = 50;
+        public int        poolSize = 50;
         public GameObject lineRendererPrefab;
 
         private Queue<LineRenderer> pool = new Queue<LineRenderer>();

@@ -325,7 +325,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 50
-  speedUp: 3
+  speedWithShift: 4
   zoomMinMax: {x: 5, y: 100}
   cursorMaterial: {fileID: 2100000, guid: 061ae88b568e6b74eaba8eeb7ca3973c, type: 2}
   startPointMaterial: {fileID: 2100000, guid: 98eb648c19325dc48b4dc2cfcd370902, type: 2}
@@ -509,24 +509,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c17199525bd4ea1418796ce41745946d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  visualMode: 1
   iterationLimit: 1000
   size:
     x: 100
     y: 100
-  visualMode: 1
   showGrid: 1
   showPaths: 1
   canMoveDiag: 1
   gizmoPathColor: {r: 0, g: 0.19833922, b: 1, a: 1}
-  start: {x: 0, y: 0}
-  end: {x: 99, y: 99}
-  searchManualPath: 0
+  start: {x: 10, y: 10}
+  end: {x: 70, y: 70}
   randomPathsCount: 50
-  searchRandomPaths: 0
-  obstacleNode: {x: 0, y: 0}
-  addObstacleManually: 0
-  randomObstaclesCount: 1
-  addRandomObstacles: 0
+  obstacleNode: {x: 20, y: 25}
+  randomObstaclesCount: 300
   nodeMaterial: {fileID: 2100000, guid: dad49fb02882c1741b8cc0f296f3dfca, type: 2}
   obstacleMaterial: {fileID: 2100000, guid: 53bb4b96f5b598140baa9680ff56ac0c, type: 2}
   walkableMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
