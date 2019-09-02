@@ -10,8 +10,8 @@ namespace Pathfinding
     {
         public Entity Entity;
 
-        public int2 start;
-        public int2 end;
+        public int2   start;
+        public int2   end;
         public float3 Destination;
         public bool NavigateToNearestIfBlocked;
         public bool NavigateToBestIfIncomplete;
@@ -67,13 +67,13 @@ namespace Pathfinding
     {
         public float3 waypoints;
     }
-    public struct Cell
+    public struct Node
     {
-        public bool Blocked
+        public bool Obstacle
         {
-            get { return Convert.ToBoolean(blocked); }
+            get { return Convert.ToBoolean(obstacle); }
         }
         public int Height;
-        public byte blocked;
+        public byte obstacle;
     }
 }
